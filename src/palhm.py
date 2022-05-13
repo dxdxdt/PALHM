@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+import importlib
 import logging
+import os
 import sys
 from abc import ABC, abstractmethod
 from getopt import getopt
@@ -49,7 +51,7 @@ class RunCmd (Cmd):
 	def do_cmd (self):
 		ProgConf.alloc_ctx()
 
-		if self.args:
+		if self.args and self.args[0]: # empty string as "default"
 			task = self.args[0]
 		else:
 			task = palhm.DEFAULT.RUN_TASK.value
@@ -63,6 +65,53 @@ class RunCmd (Cmd):
 "Usage: " + sys.argv[0] + " run [TASK]" + '''
 Run a task in config. Run the "''' + palhm.DEFAULT.RUN_TASK.value +
 '''" task if [TASK] is not specified.''')
+
+class ModsCmd (Cmd):
+	def __init__ (self, *args, **kwargs):
+		pass
+
+	def _walk_mods (self, path: str):
+		def is_mod_dir (path: str) -> bool:
+			try:
+				for i in os.scandir(path):
+					if i.name.startswith("__init__.py"):
+						return True
+			except NotADirectoryError:
+				pass
+			return False
+
+		def is_mod_file (path: str) -> str:
+			if not os.path.isfile(path):
+				return None
+
+			try:
+				pos = path.rindex(".")
+				if path[pos + 1:].startswith("py"):
+					return os.path.basename(path[:pos])
+			except ValueError:
+				pass
+
+		for i in os.scandir(path):
+			if i.name.startswith("_"):
+				continue
+			elif is_mod_dir(i.path):
+				print(i.name)
+				self._walk_mods(i.path)
+			else:
+				name = is_mod_file(i.path)
+				if name:
+					print(name)
+
+	def do_cmd (self):
+		for i in importlib.util.find_spec("palhm.mod").submodule_search_locations:
+			self._walk_mods(i)
+
+		return 0
+
+	def print_help ():
+		print(
+"Usage: " + sys.argv[0] + " mods" + '''
+Prints the available modules to stdout.''')
 
 class HelpCmd (Cmd):
 	def __init__ (self, optlist, args):
@@ -84,7 +133,7 @@ class HelpCmd (Cmd):
 		print(
 "Usage: " + sys.argv[0] + " [options] CMD [command options ...]" + '''
 Options:
-  -q       Set the verbosity level to 0(FATAL error only). Overrides config
+  -q       Set the verbosity level to 0(CRITIAL). Overrides config
   -v       Increase the verbosity level by 1. Overrides config
   -f FILE  Load config from FILE instead of the hard-coded default
 Config: ''' + ProgConf.conf + '''
@@ -92,14 +141,16 @@ Commands:
   run         run a task
   config      load config and print the contents
   help [CMD]  print this message and exit normally if [CMD] is not specified.
-              Print usage of [CMD] otherwise''')
+              Print usage of [CMD] otherwise
+  mods        list available modules''')
 
 		return 0
 
 CmdMap = {
 	"config": ConfigCmd,
 	"run": RunCmd,
-	"help": HelpCmd
+	"help": HelpCmd,
+	"mods": ModsCmd
 }
 
 optlist, args = getopt(sys.argv[1:], "qvf:")
@@ -115,14 +166,13 @@ if not args or not args[0] in CmdMap:
 	err_unknown_cmd()
 
 for p in optlist:
-	match p[0]:
-		case "-q": ProgConf.override_vl = logging.ERROR
-		case "-v":
-			if ProgConf.override_vl is None:
-				ProgConf.override_vl = palhm.DEFAULT.VL.value - 10
-			else:
-				ProgConf.override_vl -= 10
-		case "-f": ProgConf.conf = p[1]
+	if p[0] == "-q": ProgConf.override_vl = logging.ERROR
+	elif p[0] == "-v":
+		if ProgConf.override_vl is None:
+			ProgConf.override_vl = palhm.DEFAULT.VL.value - 10
+		else:
+			ProgConf.override_vl -= 10
+	elif p[0] == "-f": ProgConf.conf = p[1]
 
 logging.basicConfig(format = "%(name)s %(message)s")
 

@@ -8,13 +8,19 @@
 			"name": "palhm config",
 			"type": "python",
 			"request": "launch",
-			"cwd": "${workspaceFolder}/src",
-			"program": "palhm.py",
-			"args": [
-				"-f",
-				"conf/py-debug/palhm.jsonc",
-				"config"
-			],
+			"cwd": "${workspaceFolder}",
+			"program": "src/palhm.py",
+			"args": [ "-f", "src/conf/py-debug/palhm.jsonc", "config" ],
+			"console": "integratedTerminal",
+			"justMyCode": true
+		},
+		{
+			"name": "palhm mods",
+			"type": "python",
+			"request": "launch",
+			"cwd": "${workspaceFolder}",
+			"program": "src/palhm.py",
+			"args": [ "mods" ],
 			"console": "integratedTerminal",
 			"justMyCode": true
 		},
@@ -22,13 +28,9 @@
 			"name": "palhm run default",
 			"type": "python",
 			"request": "launch",
-			"cwd": "${workspaceFolder}/src",
-			"program": "palhm.py",
-			"args": [
-				"-f",
-				"conf/py-debug/palhm.jsonc",
-				"run"
-			],
+			"cwd": "${workspaceFolder}",
+			"program": "src/palhm.py",
+			"args": [ "-f", "src/conf/py-debug/palhm.jsonc", "run" ],
 			"console": "integratedTerminal",
 			"justMyCode": true
 		}

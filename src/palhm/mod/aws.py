@@ -7,6 +7,7 @@ from typing import Callable, Iterable
 import boto3
 import botocore
 from palhm import BackupBackend, Exec, GlobalContext
+from palhm.exceptions import APIFailError
 
 
 class CONST (Enum):
@@ -50,10 +51,13 @@ class S3BackupBackend (BackupBackend):
 					Key = self.cur_backup_key)
 				sleep(1)
 			# Make sure we don't proceed
-			raise FileExistsError(self.cur_backup_uri)
+			raise FileExistsError(
+				"Failed to set up a backup dir. Check the prefix function",
+				self.cur_backup_uri)
 		except botocore.exceptions.ClientError as e:
-			if e.response["Error"]["Code"] != "404": # expected status code
-				raise
+			c = e.response["Error"]["Code"]
+			if c != "404": # expected status code
+				raise APIFailError("Unexpected status code", c)
 
 		return super().open(ctx)
 
@@ -125,8 +129,9 @@ class S3BackupBackend (BackupBackend):
 			o_key = i["Key"]
 			o_size = i.get("Size", 0)
 			if not o_key.startswith(self.root_key):
-				raise RuntimeError("The endpoint returned an object " +
-					"irrelevant to the request: " + o_key)
+				raise APIFailError(
+					"The endpoint returned an object irrelevant to the request",
+					o_key)
 
 			l = o_key.find("/", len(prefix))
 			if l >= 0:
@@ -200,7 +205,7 @@ class S3BackupBackend (BackupBackend):
 	def rotate (self, ctx: GlobalContext):
 		ret = super()._do_fs_rotate(ctx)
 
-		if self.sc_rot:
+		if self.sc_rot and self.sc_rot != self.sc_sink:
 			def chsc (k):
 				self.client.copy_object(
 					Bucket = self.bucket,

@@ -1,3 +1,4 @@
+from .exceptions import InvalidConfigError
 import io
 import json
 import logging
@@ -15,8 +16,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from importlib import import_module
-from mailbox import FormatError
-from multiprocessing import ProcessError
 from typing import Iterable
 
 
@@ -72,10 +71,16 @@ class GlobalContext:
 
 		for m in jobj.get("modules", iter(())):
 			loaded = self.modules[m] = import_module("." + m, "palhm.mod")
-			intersect = set(self.backup_backends.keys()).intersection(loaded.backup_backends.keys())
-			if intersect:
-				raise RuntimeError("Backup Backend conflict detected. ID(s): " + intersect)
-			self.backup_backends |= loaded.backup_backends
+
+			if hasattr(loaded, "backup_backends"):
+				intersect = (
+					set(self.backup_backends.keys())
+					.intersection(loaded.backup_backends.keys()))
+				if intersect:
+					raise InvalidConfigError(
+						"Backup Backend conflict detected.",
+						intersect)
+				self.backup_backends |= loaded.backup_backends
 
 	def get_vl (self) -> int:
 		return self.vl
@@ -123,36 +128,33 @@ class Exec (Runnable, ExecvHolder):
 			b = int(m[2])
 			ret = range(a, b + 1)
 			if len(ret) == 0:
-				raise ValueError("Invalid range: " + ec)
+				raise ValueError("Invalid range", ec)
 			return ret
 		m = re.match(Exec.RE.EC_RANGE.value, x)
 		if m:
 			op = str(m[1]) if m[1] else "=="
 			n = int(m[2])
-			match op:
-				case "==": return range(n, n + 1)
-				case "<": return range(0, n)
-				case "<=": return range(0, n + 1)
-				case ">": return range(n + 1, 256)
-				case ">=": return range(n, 256)
-				case _: raise RuntimeError("FIXME")
+			if op == "==": return range(n, n + 1)
+			elif op == "<": return range(0, n)
+			elif op == "<=": return range(0, n + 1)
+			elif op == ">": return range(n + 1, 256)
+			elif op == ">=": return range(n, 256)
+			else: raise RuntimeError("FIXME")
 
-		raise ValueError("Invalid value: " + ec)
+		raise ValueError("Invalid value", ec)
 
 	def from_conf (ctx: GlobalContext, jobj: dict):
-		match jobj["type"]:
-			case "exec":
-				exec_id = jobj["exec-id"]
-				exec = ctx.exec_map[exec_id]
-				ret = exec
-			case "exec-append":
-				exec_id = jobj["exec-id"]
-				exec = ctx.exec_map[exec_id]
-				ret = exec.mkappend(jobj["argv"])
-			case "exec-inline":
-				ret = Exec(jobj)
-			# case _:
-			# 	raise RuntimeError("FIXME")
+		if jobj["type"] == "exec":
+			exec_id = jobj["exec-id"]
+			exec = ctx.exec_map[exec_id]
+			ret = exec
+		elif jobj["type"] == "exec-append":
+			exec_id = jobj["exec-id"]
+			exec = ctx.exec_map[exec_id]
+			ret = exec.mkappend(jobj["argv"], jobj.get("env", {}))
+		elif jobj["type"] == "exec-inline":
+			ret = Exec(jobj)
+		else: raise RuntimeError("FIXME")
 
 		ret.vl_stderr = jobj.get("vl-stderr", ret.vl_stderr)
 		ret.vl_stdout = jobj.get("vl-stdout", ret.vl_stdout)
@@ -173,9 +175,10 @@ class Exec (Runnable, ExecvHolder):
 			self.vl_stderr = jobj.get("vl-stderr", Exec.DEFAULT.VL_STDERR.value)
 			self.vl_stdout = jobj.get("vl-stdout", Exec.DEFAULT.VL_STDOUT.value)
 
-	def mkappend (self, extra_argv: Iterable):
+	def mkappend (self, extra_argv: Iterable, extra_env: dict = {}):
 		ny = deepcopy(self)
 		ny.argv.extend(extra_argv)
+		ny.env |= extra_env
 		return ny
 
 	def run (self, ctx: GlobalContext):
@@ -201,8 +204,10 @@ class Exec (Runnable, ExecvHolder):
 
 	def raise_oob_ec (self, ec: int):
 		if not self.test_ec(ec):
-			raise ProcessError(
-				str(self) + " returned " + str(ec) + " not in " + str(self.ec))
+			raise ChildProcessError(
+				str(self) + ": exit code test fail",
+				ec,
+				self.ec)
 
 	def __str__ (self) -> str:
 		return str().join(
@@ -307,6 +312,18 @@ class NullBackupBackend (BackupBackend):
 
 	def rotate (self, ctx: GlobalContext):
 		pass
+
+	def _fs_usage_info (self, ctx: GlobalContext) -> Iterable[tuple[str, int]]:
+		return iter(())
+
+	def _excl_fs_copies (self, ctx: GlobalContext) -> set[str]:
+		return set[str]()
+
+	def _rm_fs_recursive (self, ctx: GlobalContext, pl: Iterable[str]):
+		pass
+
+	def _fs_quota_target (self, ctx: GlobalContext) -> tuple[Decimal, Decimal]:
+		return (Decimal('inf'), Decimal('inf'))
 
 	def __str__ (self):
 		return "null"
@@ -469,7 +486,7 @@ class RoutineTask (Task):
 
 	def run (self, ctx: GlobalContext):
 		for r in self.routines:
-			self.l.debug("run: " + str(r))
+			self.l.info("run: " + str(r))
 			p = r.run(ctx)
 		return self
 
@@ -536,7 +553,7 @@ class DepResolv:
 	def build (og_map: dict):
 		def dive (og: BackupObjectGroup, obj_set: set, recurse_path: set):
 			if og in recurse_path:
-				raise RecursionError("Circular reference detected.")
+				raise RecursionError("Circular reference detected whilst building dependency tree")
 			recurse_path.add(og)
 
 			obj_set.update(og.objects)
@@ -611,7 +628,7 @@ class BackupTask (Task):
 		for og in jobj_ogrps:
 			ogid = og["id"]
 			if ogid in og_map:
-				raise KeyError("Duplicate object group: " + ogid)
+				raise KeyError("Duplicate object group", ogid)
 			og_map[ogid] = BackupObjectGroup()
 
 		# load depends
@@ -620,7 +637,8 @@ class BackupTask (Task):
 			for depend in og.get("depends", iter(())):
 				if ogid == depend:
 					raise ReferenceError(
-						"An object group dependent on itself: " + ogid)
+						"An object group dependent on itself",
+						ogid)
 				og_map[ogid].depends.add(og_map[depend])
 
 		# implicit default
@@ -633,7 +651,7 @@ class BackupTask (Task):
 			gid = jo.get("group", DEFAULT.OBJ_GRP.value)
 
 			if path in obj_path_set:
-				raise KeyError("Duplicate path: " + path)
+				raise KeyError("Duplicate path", path)
 			obj_path_set.add(path)
 			og_map[gid].objects.append(BackupObject(jo, ctx))
 
@@ -651,6 +669,7 @@ class BackupTask (Task):
 
 				for bo in self.dep_tree.avail_q:
 					bo.bbctx = bbctx
+					self.l.info("make: " + bo.path)
 					self.l.debug("despatch: " + str(bo))
 					fs.add(th_pool.submit(bo.run, ctx))
 				self.dep_tree.avail_q.clear()
@@ -686,11 +705,11 @@ def merge_conf (a: dict, b: dict) -> dict:
 	# exec conflicts
 	c = chk_dup_id("execs", a, b)
 	if c:
-		raise KeyError("Dup execs: " + c)
+		raise KeyError("Dup execs", c)
 	# task conflicts
 	c = chk_dup_id("tasks", a, b)
 	if c:
-		raise KeyError("Dup tasks: " + c)
+		raise KeyError("Dup tasks", c)
 
 	return a | b
 
@@ -701,26 +720,37 @@ def load_jsonc (path: str) -> dict:
 			stdin = in_file,
 			capture_output = True)
 	if p.returncode != 0:
-		raise FormatError(path)
+		raise ChildProcessError(p, path)
 
 	return json.load(io.BytesIO(p.stdout))
 
 def load_conf (path: str, inc_set: set = set()) -> dict:
-	if path in inc_set:
-		raise ReferenceError("Config included multiple times: " + path)
-	inc_set.add(path)
+	JSONC_EXT = ".jsonc"
 
-	if path.endswith(".jsonc"):
-		jobj = load_jsonc(path)
+	rpath = os.path.realpath(path, strict = True)
+	if rpath in inc_set:
+		raise RecursionError("Config already included", rpath)
+	inc_set.add(rpath)
+
+	if rpath[-len(JSONC_EXT):].lower() == JSONC_EXT:
+		jobj = load_jsonc(rpath)
 	else:
-		with open(path) as file:
+		with open(rpath) as file:
 			jobj = json.load(file)
 
 	# TODO: do schema validation
 
+	# pushd
+	saved_cwd = os.getcwd()
+	dn = os.path.dirname(rpath)
+	os.chdir(dn)
+
 	for i in jobj.get("include", iter(())):
 		inc_conf = load_conf(i, inc_set)
 		jobj = merge_conf(jobj, inc_conf)
+
+	# popd
+	os.chdir(saved_cwd)
 
 	return jobj
 

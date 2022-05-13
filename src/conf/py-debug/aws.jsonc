@@ -1,13 +1,33 @@
 // PALHM Instance Config
 {
-	"include": [ "conf/py-debug/conf.d/core.jsonc" ],
-	"nb-workers": 1,
-	"vl": 3,
+	"include": [ "conf.d/core.json" ],
+	"modules": [ "aws" ],
+	"nb-workers": 0, // assumed $(nproc) - default
+	// "nb-workers": 1, // to disable concurrent task despatch
+	// To unlimit the number of workers.
+	// Does not fail on resource alloc failure.
+	// "nb-workers": -1,
+	"vl": 4,
 	"tasks": [
 		{
 			"id": "backup",
 			"type": "backup",
-			"backend": "null",
+			"backend": "aws-s3",
+			"backend-param": {
+				// "profile": "default",
+				"bucket": "palhm.test",
+				"root": "/palhm/backup",
+				"prefix": {
+					"type": "default"
+					// "type": "iso8601",
+					// "timespec": "seconds",
+					// "tz": "utc"
+				},
+				// "sink-storage-class": "STANDARD_IA",
+				// "rot-storage-class": "ONEZONE_IA",
+				"nb-copy-limit": 2, // or Infinity assumed(not in JSON spec)
+				"root-size-limit": "Infinity" // or Infinity assumed
+			},
 			"object-groups": [
 				{ "id": "pre-start" },
 				{
@@ -28,7 +48,7 @@
 					"path": "pm-list.gz",
 					"group": "pre-start",
 					"pipeline": [
-						{ "type": "exec", "exec-id": "dnf-list-installed" },
+						{ "type": "exec", "exec-id": "rpm-list-installed" },
 						{ "type": "exec", "exec-id": "filter-gzip-plain" }
 					]
 				},
