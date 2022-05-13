@@ -128,7 +128,7 @@ is required, simply increase the verbosity with the `-v` option.
 | ATTR | DESC |
 | - | - |
 | Key | "execs" |
-| Value | ARRAY of [Exec Definition Object](#Exec_Definition_Object)s |
+| Value | ARRAY of [Exec Definition Object](#exec-definition-object)s |
 | Required | NO |
 | Include | MERGE |
 
@@ -196,7 +196,7 @@ is required, simply increase the verbosity with the `-v` option.
 * "exec-id": id of the Exec Definition Object **(required)**
 * "argv": array of string, which is the argument vector to append **(required)**
 * "env": environment variable mapping object. See [#Exec Definition
-  Object](#Exec_Definition_Object)
+  Object](#exec-definition-object)
 
 ```jsonc
 {
@@ -208,7 +208,7 @@ is required, simply increase the verbosity with the `-v` option.
 ```
 
 #### Inline Pipeline Exec Object
-Same as [#Exec Definition Object](#Exec_Definition_Object), except that this
+Same as [#Exec Definition Object](#exec-definition-object), except that this
 object does not require the "id" member.
 
 ```jsonc
@@ -225,9 +225,9 @@ object does not require the "id" member.
   **(required)**
 * "backend-param": see [README.md#Backend-param](../README.md#Backend-param)
 * "object-groups": array of [Backup Object Group Definition
-  Objects](#Backup_Object_Group_Definition_Object)
+  Objects](#backup-object-group-definition-object)
 * "objects": array of [Backup Object Definition
-  Objects](#Backup_Object_Definition_Object)
+  Objects](#backup-object-definition-object)
 
 ```jsonc
 {
@@ -259,11 +259,11 @@ object does not require the "id" member.
 ##### Backup Object Definition Object
 * "path": path to the backup output on the backend **(required)**
 * "group": the id of a [Backup Object Group Definition
-  Object](#Backup_Object_Group_Definition_Object)
+  Object](#backup-object-group-definition-object)
 * "pipeline": array of
-  * [Predefined Pipeline Exec Objects](#Predefined_Pipeline_Exec_Object)
-  * [Appended Pipeline Exec Objects](#Appended_Pipeline_Exec_Object)
-  * [Inline Pipeline Exec Objects](#Inline_Pipeline_Exec_Object)
+  * [Predefined Pipeline Exec Objects](#predefined-pipeline-exec-object)
+  * [Appended Pipeline Exec Objects](#appended-pipeline-exec-object)
+  * [Inline Pipeline Exec Objects](#inline-pipeline-exec-object)
 
 ```jsonc
 {
@@ -294,11 +294,11 @@ processes are not processed[^1].
 * "id": id string **(required)**
 * "type": "routine" **(required)**
 * "routine": array of the id strings of
-  * [Predefined Pipeline Exec Objects](#Predefined_Pipeline_Exec_Object)
-  * [Appended Pipeline Exec Objects](#Appended_Pipeline_Exec_Object)
-  * [Inline Pipeline Exec Objects](#Inline_Pipeline_Exec_Object)
-  * [Builtin Function Objects](#Builtin_Function_Object)
-  * [Task Pointer Objects](#Task_Pointer_Object)
+  * [Predefined Pipeline Exec Objects](#predefined-pipeline-exec-object)
+  * [Appended Pipeline Exec Objects](#appended-pipeline-exec-object)
+  * [Inline Pipeline Exec Objects](#inline-pipeline-exec-object)
+  * [Builtin Function Objects](#builtin-function-object)
+  * [Task Pointer Objects](#task-pointer-object)
 
 ```jsonc
 [
@@ -345,14 +345,14 @@ processes are not processed[^1].
 ##### Task Pointer Object
 * "type": "task"
 * "task-id": id string of
-  * [Backup Task Definition Object](#Backup_Task_Definition_Object)
-  * [Routine Task Definition Object](#Routine_Task_Definition_Object)
+  * [Backup Task Definition Object](#backup-task-definition-object)
+  * [Routine Task Definition Object](#routine-task-definition-object)
 
 ##### Builtin Function Object
 * "type": "builtin"
 * "builtin-id": "sigmask"
 * "param": function-specific param object
-  * [sigmask Builtin Function Param](#sigmask_Builtin_Function_Param)
+  * [sigmask Builtin Function Param](#sigmask-builtin-function-param)
 
 ##### sigmask Builtin Function Param
 The sigmask builtin function is the direct interface to

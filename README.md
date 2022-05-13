@@ -165,12 +165,12 @@ for more info.
 For possible values for storage class, run `aws s3 cp help`.
 
 If you wish to keep backup copies in Glacier, you may want to upload backup
-objects as STANDARD-IA first and change the storage class to GLACIER on the
-rotate stage because in the event of failure, PALHM rolls back the process by
-deleting objects already uploaded to the bucket. You may be charged for the
-objects stored in Glacier as the minimum storage duration is 90 days(as of
-2022). The **rot-storage-class** attribute serves this very purpose. More info
-on [the pricing page](https://aws.amazon.com/s3/pricing/).
+objects as STANDARD first and change the storage class to GLACIER on the rotate
+stage because in the event of failure, PALHM rolls back the process by deleting
+objects already uploaded to the bucket. You may be charged for the objects
+stored in Glacier as the minimum storage duration is 90 days(as of 2022). The
+**rot-storage-class** attribute serves this very purpose. More info on [the
+pricing page](https://aws.amazon.com/s3/pricing/).
 
 ### Backup Object Dependency Tree
 Backup objects can be configured to form a dependency tree like Makefile
@@ -212,8 +212,7 @@ See [doc/config-fmt.md](doc/config-fmt.md).
 * **awscli** and **boto3** for aws-s3 backup backend (optional)
 
 ### Examples
-* [localfs.sample.jsonc](src/conf/py-sample/localfs.sample.jsonc)
-* [aws.sample.jsonc](src/conf/py-sample/aws.sample.jsonc)
+* [sample.jsonc](src/conf/py-sample/sample.jsonc)
 
 ## Files
 | Path | Desc |
