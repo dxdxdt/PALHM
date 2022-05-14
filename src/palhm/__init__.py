@@ -711,7 +711,11 @@ def merge_conf (a: dict, b: dict) -> dict:
 	if c:
 		raise KeyError("Dup tasks", c)
 
-	return a | b
+	ret = a | b
+	ret["execs"] = a.get("execs", []) + b.get("execs", [])
+	ret["tasks"] = a.get("tasks", []) + b.get("tasks", [])
+
+	return ret
 
 def load_jsonc (path: str) -> dict:
 	with open(path) as in_file:
@@ -727,7 +731,7 @@ def load_jsonc (path: str) -> dict:
 def load_conf (path: str, inc_set: set = set()) -> dict:
 	JSONC_EXT = ".jsonc"
 
-	rpath = os.path.realpath(path, strict = True)
+	rpath = os.path.realpath(path)
 	if rpath in inc_set:
 		raise RecursionError("Config already included", rpath)
 	inc_set.add(rpath)
