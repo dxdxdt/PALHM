@@ -10,7 +10,7 @@ import palhm
 
 
 class ProgConf:
-	conf = "/etc/palhm/palhm.conf"
+	conf = "/etc/palhm/palhm.jsonc"
 	cmd = None
 	override_vl = None
 	ctx = None
