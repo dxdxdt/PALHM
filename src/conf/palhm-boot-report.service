@@ -1,0 +1,14 @@
+[Unit]
+Description=PALHM send boot report mail
+After=postfix.service sendmail.service exim.service
+
+[Service]
+Type=oneshot
+ExecStart=/var/lib/PALHM/src/palhm.py -q boot-report
+Nice=10
+ProtectSystem=strict
+ReadOnlyPaths=/
+PrivateDevices=true
+
+[Install]
+WantedBy=multi-user.target

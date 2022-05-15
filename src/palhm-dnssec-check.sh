@@ -1,7 +1,4 @@
 #!/bin/bash
-set -e
-. "$( dirname -- "${BASH_SOURCE[0]}" )"/common.sh
-
 do_query () {
 	# dig returns 0 upon successful reception and parse of the response message.
 	# All the other exit codes other than 0 will cause the script to terminate
@@ -11,9 +8,9 @@ do_query () {
 	# record will also return nothing with the status code zero.
 	dig +short +dnssec ANY "$TARGET" > "$tmpf"
 	if [ ! -s "$tmpf" ]; then
-		palhm_die \
-			"The nameserver returned no RR!
-DNSSEC verification probably failed."
+		echo "The nameserver returned no RR!
+DNSSEC verification probably failed." >&2
+		exit 1
 	fi
 }
 

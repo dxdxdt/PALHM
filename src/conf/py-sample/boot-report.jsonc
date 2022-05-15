@@ -1,0 +1,7 @@
+{
+	"boot-report": {
+		// "mua": "stdout",
+		"mua": "mailx",
+		"mail-to": [ "root" ]
+	}
+}

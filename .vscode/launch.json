@@ -25,6 +25,16 @@
 			"justMyCode": true
 		},
 		{
+			"name": "palhm boot-report",
+			"type": "python",
+			"request": "launch",
+			"cwd": "${workspaceFolder}",
+			"program": "src/palhm.py",
+			"args": [ "-f", "src/conf/py-debug/palhm.jsonc", "boot-report" ],
+			"console": "integratedTerminal",
+			"justMyCode": true
+		},
+		{
 			"name": "palhm run default",
 			"type": "python",
 			"request": "launch",

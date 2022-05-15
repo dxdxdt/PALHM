@@ -1,3 +1,8 @@
+import platform
+import sys
+import time
+
+import yaml
 from .exceptions import InvalidConfigError
 import io
 import json
@@ -64,6 +69,10 @@ class GlobalContext:
 		self.l = logging.getLogger("palhm")
 		self.l.setLevel(self.vl)
 
+		self.boot_report = (
+			BootReport(jobj["boot-report"]) if "boot-report" in jobj
+			else None)
+
 		if self.nb_workers == 0:
 			self.nb_workers = DEFAULT.NB_WORKERS.value
 		elif self.nb_workers < 0:
@@ -103,6 +112,120 @@ class GlobalContext:
 			("exec_map:\n" + "\n".join([ i[0] + ": " + str(i[1]) for i in self.exec_map.items() ])).replace("\n", "\n\t"),
 			("task_map:\n" + "\n".join([ (i[0] + ":\n" + str(i[1])).replace("\n", "\n\t") for i in self.task_map.items() ])).replace("\n", "\n\t")
 		]).replace("\t", "  ")
+
+class BootReport:
+	def _hostname () -> str:
+		return platform.node()
+
+	def _do_format (x: str) -> str:
+		return x.format(
+			hostname = BootReport._hostname()
+		)
+
+	def _default_subject () -> str:
+		return "Boot Report from {hostname}"
+
+	def _fmt_yaml_comment_header (x: str) -> str:
+		ret = list[str]()
+
+		for i in x.splitlines():
+			ret.append("# " + i)
+
+		return "\n".join(ret)
+
+	def _default_header () -> str:
+		return (
+			"This is a boot report from {hostname}.\n" +
+			"More details as follows.")
+
+	def __init__ (self, jobj: dict):
+		mua = jobj["mua"]
+		if mua == "mailx": self._mua_f = self._do_send_mailx
+		elif mua == "stdout": self._mua_f = self._do_send_stdout
+		else: raise InvalidConfigError("Unsupported MUA", mua)
+
+		self.recipients = jobj["mail-to"]
+		self.subject = jobj.get("subject", BootReport._default_subject())
+		self.header = jobj.get("header", BootReport._default_header())
+		self.uptime_since = jobj.get("uptime-since", True)
+		self.uptime = jobj.get("uptime", True)
+		self.bootid = jobj.get("boot-id", True)
+		self.systemd_analyze = jobj.get("systemd-analyze", True)
+
+	def get_subject (self) -> str:
+		return BootReport._do_format(self.subject)
+
+	def compose_body (self, ctx: GlobalContext):
+		body = {}
+		root_doc = { "boot-report": body }
+
+		yield BootReport._fmt_yaml_comment_header(
+			BootReport._do_format(self.header)) + "\n"
+
+		body["hostname"] = BootReport._hostname()
+		body["tz"] = list(time.tzname) + [time.timezone]
+
+		if self.uptime_since:
+			p = subprocess.run(
+				[ "/bin/uptime", "--since" ],
+				stdin = subprocess.DEVNULL,
+				capture_output = True)
+			if p.returncode != 0:
+				raise ChildProcessError("uptime-since", p.returncode)
+			body["uptime-since"] = p.stdout.decode().strip()
+
+		if self.uptime:
+			p = subprocess.run(
+				[ "/bin/uptime", "-p" ],
+				stdin = subprocess.DEVNULL,
+				capture_output = True)
+			if p.returncode != 0:
+				raise ChildProcessError("uptime", p.returncode)
+			body["uptime"] = p.stdout.decode().strip()
+
+		if self.bootid:
+			with open("/proc/sys/kernel/random/boot_id") as f:
+				body["bood-id"] = f.readline(36)
+
+		if self.systemd_analyze:
+			p = subprocess.run(
+				[ "/bin/systemd-analyze" ],
+				stdin = subprocess.DEVNULL,
+				capture_output = True)
+			if p.returncode != 0:
+				raise ChildProcessError("systemd-analyze", p.returncode)
+			body["systemd-analyze"] = p.stdout.decode().strip()
+
+		yield yaml.dump(root_doc)
+
+	def do_send (self, ctx: GlobalContext) -> int:
+		return self._mua_f(ctx)
+
+	def _do_send_mailx (self, ctx: GlobalContext) -> int:
+		argv = [ "/bin/mailx", "-s", self.get_subject() ] + self.recipients
+
+		with subprocess.Popen(
+			argv,
+			stdin = subprocess.PIPE,
+			stdout = subprocess.DEVNULL,
+			stderr = subprocess.PIPE) as p:
+			for d in self.compose_body(ctx):
+				p.stdin.write(d.encode())
+			p.stdin.close()
+
+			return p.wait()
+
+	def _do_send_stdout (self, ctx: GlobalContext) -> int:
+		sys.stdout.write(self.get_subject() + "\n")
+
+		for r in self.recipients:
+			sys.stdout.write(r + "\n")
+		sys.stdout.write("\n")
+
+		for d in self.compose_body(ctx):
+			sys.stdout.write(d)
+
+		return 0
 
 class Runnable (ABC):
 	@abstractmethod
@@ -710,6 +833,10 @@ def merge_conf (a: dict, b: dict) -> dict:
 	c = chk_dup_id("tasks", a, b)
 	if c:
 		raise KeyError("Dup tasks", c)
+	# "boot-report" conflict
+	if "boot-report" in a and "boot-report" in b:
+		raise InvalidConfigError(
+			"'boot-report' already defined in the previous config")
 
 	ret = a | b
 	ret["execs"] = a.get("execs", []) + b.get("execs", [])
@@ -764,7 +891,7 @@ def setup_conf (jobj: dict) -> GlobalContext:
 	for i in jobj.get("execs", iter(())):
 		ret.exec_map[i["id"]] = Exec(i)
 
-	for i in jobj["tasks"]:
+	for i in jobj.get("tasks", iter(())):
 		ret.task_map[i["id"]] = TaskClassMap[i["type"]](ret, i)
 
 	return ret

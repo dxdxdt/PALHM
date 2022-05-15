@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from getopt import getopt
 
 import palhm
+from palhm.exceptions import InvalidConfigError
 
 
 class ProgConf:
@@ -113,6 +114,23 @@ class ModsCmd (Cmd):
 "Usage: " + sys.argv[0] + " mods" + '''
 Prints the available modules to stdout.''')
 
+class BootReportCmd (Cmd):
+	def __init__ (self, *args, **kwargs):
+		pass
+
+	def do_cmd (self):
+		ProgConf.alloc_ctx()
+
+		if ProgConf.ctx.boot_report is None:
+			raise InvalidConfigError("'boot-report' not configured")
+
+		return ProgConf.ctx.boot_report.do_send(ProgConf.ctx)
+
+	def print_help ():
+		print(
+"Usage: " + sys.argv[0] + " boot-report" + '''
+Send mail of boot report to recipients configured.''')
+
 class HelpCmd (Cmd):
 	def __init__ (self, optlist, args):
 		self.optlist = optlist
@@ -138,11 +156,12 @@ Options:
   -f FILE  Load config from FILE instead of the hard-coded default
 Config: ''' + ProgConf.conf + '''
 Commands:
-  run         run a task
-  config      load config and print the contents
-  help [CMD]  print this message and exit normally if [CMD] is not specified.
-              Print usage of [CMD] otherwise
-  mods        list available modules''')
+  run          run a task
+  config       load config and print the contents
+  help [CMD]   print this message and exit normally if [CMD] is not specified.
+               Print usage of [CMD] otherwise
+  mods         list available modules
+  boot-report  mail boot report''')
 
 		return 0
 
@@ -150,7 +169,8 @@ CmdMap = {
 	"config": ConfigCmd,
 	"run": RunCmd,
 	"help": HelpCmd,
-	"mods": ModsCmd
+	"mods": ModsCmd,
+	"boot-report": BootReportCmd
 }
 
 optlist, args = getopt(sys.argv[1:], "qvf:")
