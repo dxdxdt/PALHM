@@ -1,8 +1,8 @@
+from imp import load_module
 import platform
 import sys
 import time
 
-import yaml
 from .exceptions import InvalidConfigError
 import io
 import json
@@ -139,6 +139,8 @@ class BootReport:
 			"More details as follows.")
 
 	def __init__ (self, jobj: dict):
+		self.yaml = import_module("yaml")
+
 		mua = jobj["mua"]
 		if mua == "mailx": self._mua_f = self._do_send_mailx
 		elif mua == "stdout": self._mua_f = self._do_send_stdout
@@ -196,7 +198,7 @@ class BootReport:
 				raise ChildProcessError("systemd-analyze", p.returncode)
 			body["systemd-analyze"] = p.stdout.decode().strip()
 
-		yield yaml.dump(root_doc)
+		yield self.yaml.dump(root_doc)
 
 	def do_send (self, ctx: GlobalContext) -> int:
 		return self._mua_f(ctx)
