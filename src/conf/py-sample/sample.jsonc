@@ -133,19 +133,19 @@
 					"path": "example.com", // Placeholder
 					"pipeline": [
 						/*
-						* Check if dig can query the record with the DNSSEC
-						* validation flag. Empty stdout with zero return code
-						* means SERVFAIL.
-						*/
+						 * Check if dig can query the record with the DNSSEC
+						 * validation flag. Empty stdout with zero return code
+						 * means SERVFAIL.
+						 */
 						{
 							"type": "exec-append",
 							"exec-id": "dig-dnssec",
 							"argv": [ "ANY", "example.com" ]
 						},
 						/*
-						* Trap for empty dig output grep will return non-zero if
-						* dig have not produced any output
-						*/
+						 * Trap for empty dig output grep will return non-zero if
+						 * dig have not produced any output
+						 */
 						{ "type": "exec", "exec-id": "grep-any" }
 					]
 				}

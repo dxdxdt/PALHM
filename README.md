@@ -19,7 +19,7 @@ resources for a backup task is not cost-efficient. This is where this script
 comes in to play.
 
 ## TL;DR
-Goto [#Examples](#examples).
+Goto [#Getting Started](#getting-started).
 
 ## Routine Task
 The Routine Task is a set of routines that are executed sequentially. It can
@@ -122,7 +122,7 @@ integers.
       "type": "backup",
       "backend": "localfs",
       "backend-param": {
-        "root": "/media/backup/localhost", // (required)
+        "root": "/media/backup/localhost", // (REQUIRED)
         "dmode": "755", // (optional) mode for new directories
         "fmode": "644", // (optional) mode for new files
         "nb-copy-limit": "Infinity", // (optional)
@@ -145,8 +145,8 @@ integers.
       "backend": "aws-s3",
       "backend-param": {
         "profile": "default", // (optional) AWS client profile. Defaults to "default"
-        "bucket": "palhm.test", // (required) S3 bucket name
-        "root": "/palhm/backup", // (required)
+        "bucket": "palhm.test", // (REQUIRED) S3 bucket name
+        "root": "/palhm/backup", // (REQUIRED)
         "sink-storage-class": "STANDARD", // (optional) storage class for new uploads
         "rot-storage-class": "STANDARD", // (optional) storage class for final uploads
         "nb-copy-limit": "Infinity", // (optional)
@@ -202,17 +202,111 @@ On start, the objects in "root" and "http" groups will be built simultanesouly.
 On completion of all the objects in "http", the objects in the group "sql" and
 "ldap" will be built in order.
 
+## Boot Report Mail
+PALHM supports sending the "Boot Report Mail", which contains information about
+the current boot. The mail is meant to be sent on boot up for system admins to
+ensure no unexpected reboot event will go uninvestigated. This feature is used
+in conjunction with [the systemd service](src/conf/palhm-boot-report.service)
+or a rc.d script on SysVinit based systems.
+
+```jsonc
+{
+  "boot-report": {
+	// (REQUIRED) MUA for sending mail
+	/* stdout MUA
+	 * For testing. Print contents to stdout. Doesn't actually send mail
+	 */
+    // "mua": "stdout",
+    "mua": "mailx", // mailx command MUA
+	// (REQUIRED) List of recipients
+    "mail-to": [ "root" ],
+	// The mail subject (optional)
+    "subject": "Custom Boot Report Subject from {hostname}",
+	/*
+	 * The mail body header(leading yaml comments). Use line break(\n) for
+	 * multi-line header (optional)
+	 */
+    "header": "Custom header content with {hostname} substitution.",
+    "uptime-since": true, // Include output of `uptime --since` (optional)
+    "uptime": true, // Include output of `uptime -p` (optional)
+    "bootid": true // Include kernel boot_id (optional)
+  }
+}
+```
+
+## DNSSEC Check
+If your domain is configured with DNSSEC[^2], PALHM can be used to check the
+reachability of your RRs. Your domain will become unavailable when the keys are
+misconfigured or you have missed the mandatory key rollover event.
+
+The DNSSEC Check task can be fabricated as backup tasks. This replaces the
+original [palhm-dnssec-check.sh](src/palhm-dnssec-check.sh) script. The upstream
+name servers must support DNSSEC. The task can be run from crontab. PALHM will
+produce stderr output and return non-zero exit code, causing crond to send mail.
+
+```jsonc
+{
+  "tasks": [
+    {
+      "id": "check-dnssec",
+      "type": "backup",
+      "backend": "null",
+      "objects": [
+        {
+          "path": "example.com", // Placeholder
+          "pipeline": [
+            /*
+            * Check if dig can query the record with the DNSSEC
+            * validation flag. Empty stdout with zero return code
+            * means SERVFAIL.
+            */
+            {
+              "type": "exec-append",
+              "exec-id": "dig-dnssec",
+              "argv": [ "ANY", "example.com" ]
+            },
+            /*
+             * Trap for empty dig output grep will return non-zero if
+             * dig have not produced any output
+             */
+            { "type": "exec", "exec-id": "grep-any" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Here's the example crontab.
+
+```crontab
+0  *  *  *  *   root systemd-run -qP -p User=palhm -p Nice=15 -p ProtectSystem=strict -p ReadOnlyPaths=/ -p PrivateDevices=true --wait /var/lib/PALHM/src/palhm.py -q run check-dnssec
+```
+
 ## Config JSON Format
 See [doc/config-fmt.md](doc/config-fmt.md).
 
 ## Getting Started
+The tasks can be run with the "run" subcommand. Run
+'[src/palhm.py](src/palhm.py)' help for more.
+
+```sh
+palhm.py run
+# For crontab job
+palhm.py -q run
+palhm.py -q run check-dnssec
+```
+
 ### Prerequisites
-* Python 3.7 or higher
+* Python 3.9 or higher
 * `json_reformat` command provided by **yajl** for jsonc support (optional)
 * **awscli** and **boto3** for aws-s3 backup backend (optional)
 
 ### Examples
 * [sample.jsonc](src/conf/py-sample/sample.jsonc)
+* [crontab](src/conf/crontab)
+* [systemd service](src/conf/palhm-boot-report.service) for Boot Report
 
 ## Files
 | Path | Desc |
@@ -246,11 +340,13 @@ Also, you can always do a dry run of your backup task by setting the backend to
 To prepare for very unlikely events of
 [disasters](https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/disaster-recovery-options-in-the-cloud.html)
 affecting an entire AWS region, you may wish to implement cross-region
-replication of S3 objects. The replication the S3 provides does not work on very
-large objects. So replication of large objects across AWS regions has to be done
-manually by a client - another implementation is required.
+replication of S3 objects. Contrary to the document's recommendation, the
+replication the S3 provides does not work on very large objects. So replication
+of large objects across AWS regions has to be done manually by a client -
+another implementation is required.
 
 Cross-region data transfer is costly, so this idea came to a halt.
 
 ## Footnotes
 [^1]: Even with SSDs, disrupting sequential reads decreases overall performance
+[^2]: You really should if it's not

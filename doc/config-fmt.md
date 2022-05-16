@@ -181,8 +181,8 @@ is required, simply increase the verbosity with the `-v` option.
 | Include | MERGE |
 
 #### Predefined Pipeline Exec Object
-* "type": "exec" **(required)**
-* "exec-id": id of the Exec Definition Object **(required)**
+* "type": "exec" **(REQUIRED)**
+* "exec-id": id of the Exec Definition Object **(REQUIRED)**
 
 ```jsonc
 {
@@ -192,9 +192,9 @@ is required, simply increase the verbosity with the `-v` option.
 ```
 
 #### Appended Pipeline Exec Object
-* "type": "exec-inline" **(required)**
-* "exec-id": id of the Exec Definition Object **(required)**
-* "argv": array of string, which is the argument vector to append **(required)**
+* "type": "exec-inline" **(REQUIRED)**
+* "exec-id": id of the Exec Definition Object **(REQUIRED)**
+* "argv": array of string, which is the argument vector to append **(REQUIRED)**
 * "env": environment variable mapping object. See [#Exec Definition
   Object](#exec-definition-object)
 
@@ -219,10 +219,10 @@ object does not require the "id" member.
 ```
 
 #### Backup Task Definition Object
-* "id": id string **(required)**
-* "type": "backup" **(required)**
+* "id": id string **(REQUIRED)**
+* "type": "backup" **(REQUIRED)**
 * "backend": see [README.md#Backend-param](../README.md#Backend-param)
-  **(required)**
+  **(REQUIRED)**
 * "backend-param": see [README.md#Backend-param](../README.md#Backend-param)
 * "object-groups": array of [Backup Object Group Definition
   Objects](#backup-object-group-definition-object)
@@ -241,7 +241,7 @@ object does not require the "id" member.
 ```
 
 ##### Backup Object Group Definition Object
-* "id": id string. Valid within the backup task **(required)**
+* "id": id string. Valid within the backup task **(REQUIRED)**
 * "depends": array of other object group id strings on which the object group is
   dependent. The other groups must appear before the group definition.
 
@@ -257,7 +257,7 @@ object does not require the "id" member.
 ```
 
 ##### Backup Object Definition Object
-* "path": path to the backup output on the backend **(required)**
+* "path": path to the backup output on the backend **(REQUIRED)**
 * "group": the id of a [Backup Object Group Definition
   Object](#backup-object-group-definition-object)
 * "pipeline": array of
@@ -291,8 +291,8 @@ before raising the exception. In this case, the exit code from the rest of child
 processes are not processed[^1].
 
 #### Routine Task Definition Object
-* "id": id string **(required)**
-* "type": "routine" **(required)**
+* "id": id string **(REQUIRED)**
+* "type": "routine" **(REQUIRED)**
 * "routine": array of the id strings of
   * [Predefined Pipeline Exec Objects](#predefined-pipeline-exec-object)
   * [Appended Pipeline Exec Objects](#appended-pipeline-exec-object)
@@ -364,6 +364,37 @@ be used on Unix systems.
 * "sig": array of signal strings. A numberic value and the name of a signal with
   or without "SIG" prefix are accepted. Valid values include "TERM", "SIGTERM",
   15, "INT", "SIGINT" and "2"
+
+### boot-report
+| ATTR | DESC |
+| - | - |
+| Key | "boot-report" |
+| Required | NO |
+| Include | MERGE except "mua" |
+
+The contents of the mail is in yaml format. The entirety of the body can be fed
+into a yaml parser for machine processing. The "header" attribute defines the
+header contents of the yaml document for humans.
+
+* "mua": mail user agent(MUA) front-end. Can only be specified once throughout
+  the config files **(required)**
+  * "stdout": prints the contents of the mail to stdout. Does not actually send
+    mail. The "mail-to" attribute is not used. For testing
+  * "mailx": use the mailx command to send mail
+* "mail-to": array of boot report mail recipients. The values must be
+  recognisable by the MUA **(required)**
+* "subject": title for mail. [Content Substitution
+  Variables](#content-substitution-variables) can be used
+* "header": header content in mail body. The header is transformed to yaml
+  comments and prepended to the start of the yaml document. [Content
+  Substitution Variables](#content-substitution-variables) can be used
+* "uptime-since": include output of `uptime --since`
+* "uptime": include output of `uptime -p`
+* "bootid": include boot_id(`/proc/sys/kernel/random/boot_id`)
+
+#### Content Substitution Variables
+* {hostname}: The hostname. See
+  [platform.node()](https://docs.python.org/3/library/platform.html#platform.node)
 
 ## Footnotes
 [^1]: they're most likely 141(terminated by SIGPIPE)
