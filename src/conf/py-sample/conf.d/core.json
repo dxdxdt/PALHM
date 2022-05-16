@@ -36,6 +36,18 @@
 		{
 			"id": "os-release",
 			"argv": [ "/bin/cat", "/etc/os-release" ]
+		},
+		{
+			"id": "dig-dnssec",
+			"argv": [ "/bin/dig", "+short", "+dnssec", "+notcp" ]
+		},
+		{
+			"id": "grep-any",
+			"argv": [ "/bin/grep", "." ]
+		},
+		{
+			"id": "null-stdout-sink",
+			"argv": [ "/bin/cp", "/dev/stdin", "/dev/null" ]
 		}
 	]
 }

@@ -1,4 +1,3 @@
-from imp import load_module
 import platform
 import sys
 import time
@@ -78,6 +77,8 @@ class GlobalContext:
 		elif self.nb_workers < 0:
 			self.nb_workers = None
 
+		self.child_io_size = 4096
+
 		for m in jobj.get("modules", iter(())):
 			loaded = self.modules[m] = import_module("." + m, "palhm.mod")
 
@@ -152,7 +153,6 @@ class BootReport:
 		self.uptime_since = jobj.get("uptime-since", True)
 		self.uptime = jobj.get("uptime", True)
 		self.bootid = jobj.get("boot-id", True)
-		self.systemd_analyze = jobj.get("systemd-analyze", True)
 
 	def get_subject (self) -> str:
 		return BootReport._do_format(self.subject)
@@ -168,35 +168,30 @@ class BootReport:
 		body["tz"] = list(time.tzname) + [time.timezone]
 
 		if self.uptime_since:
-			p = subprocess.run(
+			with subprocess.Popen(
 				[ "/bin/uptime", "--since" ],
 				stdin = subprocess.DEVNULL,
-				capture_output = True)
-			if p.returncode != 0:
-				raise ChildProcessError("uptime-since", p.returncode)
-			body["uptime-since"] = p.stdout.decode().strip()
+				stdout = subprocess.PIPE) as p:
+				body["uptime-since"] = str(
+					p.stdout.read(ctx.child_io_size)).strip()
+
+				if p.wait() != 0:
+					raise ChildProcessError(p)
 
 		if self.uptime:
-			p = subprocess.run(
+			with subprocess.Popen(
 				[ "/bin/uptime", "-p" ],
 				stdin = subprocess.DEVNULL,
-				capture_output = True)
-			if p.returncode != 0:
-				raise ChildProcessError("uptime", p.returncode)
-			body["uptime"] = p.stdout.decode().strip()
+				stdout = subprocess.PIPE) as p:
+				body["uptime"] = str(
+					p.stdout.read(ctx.child_io_size)).strip()
+
+				if p.wait() != 0:
+					raise ChildProcessError(p)
 
 		if self.bootid:
 			with open("/proc/sys/kernel/random/boot_id") as f:
 				body["bood-id"] = f.readline(36)
-
-		if self.systemd_analyze:
-			p = subprocess.run(
-				[ "/bin/systemd-analyze" ],
-				stdin = subprocess.DEVNULL,
-				capture_output = True)
-			if p.returncode != 0:
-				raise ChildProcessError("systemd-analyze", p.returncode)
-			body["systemd-analyze"] = p.stdout.decode().strip()
 
 		yield self.yaml.dump(root_doc)
 
@@ -742,8 +737,8 @@ class DepResolv:
 class BackupTask (Task):
 	def __init__ (self, ctx: GlobalContext, jobj: dict):
 		og_map = {}
-		jobj_ogrps = jobj["object-groups"]
-		jobj_list = jobj["objects"]
+		jobj_ogrps = jobj.get("object-groups", [])
+		jobj_list = jobj.get("objects", [])
 		obj_path_set = set()
 
 		self.l = ctx.l.getChild("BackupTask@" + jobj.get("id", hex(id(self))))
@@ -835,27 +830,33 @@ def merge_conf (a: dict, b: dict) -> dict:
 	c = chk_dup_id("tasks", a, b)
 	if c:
 		raise KeyError("Dup tasks", c)
-	# "boot-report" conflict
-	if "boot-report" in a and "boot-report" in b:
-		raise InvalidConfigError(
-			"'boot-report' already defined in the previous config")
 
 	ret = a | b
 	ret["execs"] = a.get("execs", []) + b.get("execs", [])
 	ret["tasks"] = a.get("tasks", []) + b.get("tasks", [])
 
+	# "boot-report" conflict and merge
+	if "boot-report" in a and "boot-report" in b:
+		if "mua" in a["boot-report"] and "mua" in b["boot-report"]:
+			raise InvalidConfigError("Overriding 'mua' in 'boot-report'")
+		ret["boot-report"]["mail-to"] = (
+			a["boot-report"]["mail-to"] +
+			b["boot-report"]["mail-to"])
+
 	return ret
 
 def load_jsonc (path: str) -> dict:
-	with open(path) as in_file:
-		p = subprocess.run(
+	with (open(path) as in_file,
+		subprocess.Popen(
 			[ "/bin/json_reformat" ],
 			stdin = in_file,
-			capture_output = True)
-	if p.returncode != 0:
-		raise ChildProcessError(p, path)
+			stdout = subprocess.PIPE) as p):
+		ret = json.load(p.stdout)
 
-	return json.load(io.BytesIO(p.stdout))
+		if p.wait() != 0:
+			raise ChildProcessError(p, path)
+
+	return ret
 
 def load_conf (path: str, inc_set: set = set()) -> dict:
 	JSONC_EXT = ".jsonc"

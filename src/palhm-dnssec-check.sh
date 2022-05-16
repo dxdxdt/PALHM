@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# This script is a legacy. The same functionality can be implemented by setting
+# up a back up task. See [conf/py-sample/sample.jsonc]
+
 do_query () {
 	# dig returns 0 upon successful reception and parse of the response message.
 	# All the other exit codes other than 0 will cause the script to terminate
@@ -6,7 +10,7 @@ do_query () {
 	# We assume that a status code has returned when dig produces no output with
 	# the option. Caution must be taken in this approach as zones with no
 	# record will also return nothing with the status code zero.
-	dig +short +dnssec ANY "$TARGET" > "$tmpf"
+	dig +short +dnssec +notcp ANY "$TARGET" > "$tmpf"
 	if [ ! -s "$tmpf" ]; then
 		echo "The nameserver returned no RR!
 DNSSEC verification probably failed." >&2
@@ -33,7 +37,7 @@ declare TARGET="$1"
 declare tmpf="$(mktemp --tmpdir "palhm-dnssec.XXXXXXXXXX")"
 
 do_query & set +e
-wait -f "$!"
+wait
 ec="$?"
 rm "$tmpf"
 

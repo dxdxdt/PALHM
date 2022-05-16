@@ -242,5 +242,15 @@ Also, you can always do a dry run of your backup task by setting the backend to
 ## TODO
 * JSON schema validation
 
+### AWS S3 Replication Daemon
+To prepare for very unlikely events of
+[disasters](https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/disaster-recovery-options-in-the-cloud.html)
+affecting an entire AWS region, you may wish to implement cross-region
+replication of S3 objects. The replication the S3 provides does not work on very
+large objects. So replication of large objects across AWS regions has to be done
+manually by a client - another implementation is required.
+
+Cross-region data transfer is costly, so this idea came to a halt.
+
 ## Footnotes
 [^1]: Even with SSDs, disrupting sequential reads decreases overall performance

@@ -3,6 +3,16 @@
 	// "modules": [ "aws" ],
 	"nb-workers": 0,
 	// "vl": 4,
+	"boot-report": {
+		// "mua": "stdout",
+		"mua": "mailx",
+		"mail-to": [ "root" ]
+		// "subject": "Custom Boot Report Subject from {hostname}",
+		// "header": "Custom header content with {hostname} substitution."
+		// "uptime-since": true,
+		// "uptime": true,
+		// "bootid": true
+	},
 	"tasks": [
 		{
 			"id": "backup",
@@ -111,6 +121,33 @@
 				{
 					"type": "exec-inline",
 					"argv": [ "/sbin/reboot" ]
+				}
+			]
+		},
+		{
+			"id": "check-dnssec",
+			"type": "backup",
+			"backend": "null",
+			"objects": [
+				{
+					"path": "example.com", // Placeholder
+					"pipeline": [
+						/*
+						* Check if dig can query the record with the DNSSEC
+						* validation flag. Empty stdout with zero return code
+						* means SERVFAIL.
+						*/
+						{
+							"type": "exec-append",
+							"exec-id": "dig-dnssec",
+							"argv": [ "ANY", "example.com" ]
+						},
+						/*
+						* Trap for empty dig output grep will return non-zero if
+						* dig have not produced any output
+						*/
+						{ "type": "exec", "exec-id": "grep-any" }
+					]
 				}
 			]
 		},

@@ -43,6 +43,21 @@
 			"args": [ "-f", "src/conf/py-debug/palhm.jsonc", "run" ],
 			"console": "integratedTerminal",
 			"justMyCode": true
+		},
+		{
+			"name": "palhm run check-dnssec",
+			"type": "python",
+			"request": "launch",
+			"cwd": "${workspaceFolder}",
+			"program": "src/palhm.py",
+			"args": [
+				"-f",
+				"src/conf/py-debug/palhm.jsonc",
+				"run",
+				"check-dnssec"
+			],
+			"console": "integratedTerminal",
+			"justMyCode": true
 		}
 	]
 }

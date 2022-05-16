@@ -6,9 +6,7 @@ After=postfix.service sendmail.service exim.service
 Type=oneshot
 ExecStart=/var/lib/PALHM/src/palhm.py -q boot-report
 Nice=10
-ProtectSystem=strict
-ReadOnlyPaths=/
-PrivateDevices=true
+User=palhm
 
 [Install]
 WantedBy=multi-user.target
