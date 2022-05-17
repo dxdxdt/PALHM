@@ -2,7 +2,14 @@
 	"execs": [
 		{
 			"id": "tar",
-			"argv": [ "/bin/tar", "--xattrs", "--selinux", "--warning=none", "-cf", "-" ],
+			"argv": [
+				"/bin/tar",
+				"--xattrs",
+				"--selinux",
+				"--warning=none",
+				"-cf",
+				"-"
+			],
 			"ec": "<2"
 		},
 		{
@@ -23,7 +30,12 @@
 		},
 		{
 			"id": "rpm-list-installed",
-			"argv": [ "/bin/rpm", "-qa" ]
+			"argv": [
+				"/bin/rpm",
+				"-qa",
+				"--qf",
+				"%{name}\\t%{version}-%{release}.%{arch}\\t%{vendor}\\n"
+			]
 		},
 		{
 			"id": "dpkg-list-installed",
