@@ -381,6 +381,9 @@ header contents of the yaml document for humans.
   * "stdout": prints the contents of the mail to stdout. Does not actually send
     mail. The "mail-to" attribute is not used. For testing
   * "mailx": use the mailx command to send mail
+  * "aws-sns": use AWS SNS to send messages
+* "mua-param": parametres for AWS SNS client. See
+  [README.md##aws-sns-mua](../README.md#aws-sns-mua)
 * "mail-to": array of boot report mail recipients. The values must be
   recognisable by the MUA **(required)**
 * "subject": title for mail. [Content Substitution

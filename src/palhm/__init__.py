@@ -22,7 +22,6 @@ import sys
 import time
 
 from .exceptions import InvalidConfigError
-import io
 import json
 import logging
 import os
@@ -72,44 +71,60 @@ class ValidObject (ABC):
 
 class GlobalContext:
 	def __init__ (self, jobj: dict):
-		self.nb_workers = jobj.get("nb-workers", 0)
-		if "vl" in jobj:
-			self.vl = trans_vl(jobj["vl"])
-		else:
-			self.vl = DEFAULT.VL.value
+		def chk_conflict (a: dict, b: dict, msg: str):
+			comm = set(a.keys()).intersection(b.keys())
+			if comm:
+				raise InvalidConfigError(msg, comm)
+
 		self.modules = {}
-		self.backup_backends = {
+		self.backup_backends = dict[str, BackupBackend]({
 			"null": NullBackupBackend,
 			"localfs": LocalfsBackupBackend
-		}
-		self.exec_map = {}
-		self.task_map = {}
-		self.l = logging.getLogger("palhm")
-		self.l.setLevel(self.vl)
-
-		self.boot_report = (
-			BootReport(jobj["boot-report"]) if "boot-report" in jobj
-			else None)
-
-		if self.nb_workers == 0:
-			self.nb_workers = DEFAULT.NB_WORKERS.value
-		elif self.nb_workers < 0:
-			self.nb_workers = None
-
-		self.child_io_size = 4096
+		})
+		self.muas = dict[str, MUA]({
+			"mailx": MailxMUA,
+			"stdout": StdoutMUA
+		})
 
 		for m in jobj.get("modules", iter(())):
 			loaded = self.modules[m] = import_module("." + m, "palhm.mod")
 
 			if hasattr(loaded, "backup_backends"):
-				intersect = (
-					set(self.backup_backends.keys())
-					.intersection(loaded.backup_backends.keys()))
-				if intersect:
-					raise InvalidConfigError(
-						"Backup Backend conflict detected.",
-						intersect)
+				chk_conflict(
+					self.backup_backends,
+					loaded.backup_backends,
+					"Backup Backend conflict detected")
 				self.backup_backends |= loaded.backup_backends
+			if hasattr(loaded, "muas"):
+				chk_conflict(
+					self.muas,
+					loaded.muas,
+					"MUA conflict detected")
+				self.muas |= loaded.muas
+
+		self.nb_workers = jobj.get("nb-workers", DEFAULT.NB_WORKERS.value)
+		if self.nb_workers < 0:
+			self.nb_workers = None
+		if "vl" in jobj:
+			self.vl = trans_vl(jobj["vl"])
+		else:
+			self.vl = DEFAULT.VL.value
+		self.exec_map = {}
+		self.task_map = {}
+		self.l = logging.getLogger("palhm")
+		self.l.setLevel(self.vl)
+
+		for i in jobj.get("execs", iter(())):
+			self.exec_map[i["id"]] = Exec(i)
+		for i in jobj.get("tasks", iter(())):
+			self.task_map[i["id"]] = TaskClassMap[i["type"]](self, i)
+
+		self.child_io_size = 4096
+
+		self.boot_report = (
+			BootReport(self, jobj["boot-report"]) if "boot-report" in jobj
+			else None)
+
 
 	def get_vl (self) -> int:
 		return self.vl
@@ -129,8 +144,10 @@ class GlobalContext:
 			"vl: " + str(self.vl),
 			"modules: " + " ".join([ i for i in self.modules ]),
 			"backup_backends: " + " ".join([ i for i in self.backup_backends.keys() ]),
+			"muas: " + " ".join([ i for i in self.muas.keys() ]),
 			("exec_map:\n" + "\n".join([ i[0] + ": " + str(i[1]) for i in self.exec_map.items() ])).replace("\n", "\n\t"),
-			("task_map:\n" + "\n".join([ (i[0] + ":\n" + str(i[1])).replace("\n", "\n\t") for i in self.task_map.items() ])).replace("\n", "\n\t")
+			("task_map:\n" + "\n".join([ (i[0] + ":\n" + str(i[1])).replace("\n", "\n\t") for i in self.task_map.items() ])).replace("\n", "\n\t"),
+			"boot-report:\n\t" + (str(self.boot_report).replace("\n", "\n\t") if self.boot_report else "")
 		]).replace("\t", "  ")
 
 class BootReport:
@@ -158,14 +175,10 @@ class BootReport:
 			"This is a boot report from {hostname}.\n" +
 			"More details as follows.")
 
-	def __init__ (self, jobj: dict):
+	def __init__ (self, ctx: GlobalContext, jobj: dict):
 		self.yaml = import_module("yaml")
 
-		mua = jobj["mua"]
-		if mua == "mailx": self._mua_f = self._do_send_mailx
-		elif mua == "stdout": self._mua_f = self._do_send_stdout
-		else: raise InvalidConfigError("Unsupported MUA", mua)
-
+		self.mua = ctx.muas[jobj["mua"]](jobj.get("mua-param", {}))
 		self.recipients = jobj["mail-to"]
 		self.subject = jobj.get("subject", BootReport._default_subject())
 		self.header = jobj.get("header", BootReport._default_header())
@@ -215,33 +228,27 @@ class BootReport:
 		yield self.yaml.dump(root_doc)
 
 	def do_send (self, ctx: GlobalContext) -> int:
-		return self._mua_f(ctx)
+		return self.mua.do_send(
+			ctx = ctx,
+			recipients = self.recipients,
+			subject = self.get_subject(),
+			composer = self.compose_body(ctx))
 
-	def _do_send_mailx (self, ctx: GlobalContext) -> int:
-		argv = [ "/bin/mailx", "-s", self.get_subject() ] + self.recipients
-
-		with subprocess.Popen(
-			argv,
-			stdin = subprocess.PIPE,
-			stdout = subprocess.DEVNULL,
-			stderr = subprocess.PIPE) as p:
-			for d in self.compose_body(ctx):
-				p.stdin.write(d.encode())
-			p.stdin.close()
-
-			return p.wait()
-
-	def _do_send_stdout (self, ctx: GlobalContext) -> int:
-		sys.stdout.write(self.get_subject() + "\n")
-
-		for r in self.recipients:
-			sys.stdout.write(r + "\n")
-		sys.stdout.write("\n")
-
-		for d in self.compose_body(ctx):
-			sys.stdout.write(d)
-
-		return 0
+	def __str__ (self) -> str:
+		return '''mua: {mua}
+recipients: {recipients}
+subject: {subject}
+header: {header}
+uptime_since: {uptime_since}
+uptime: {uptime}
+bootid: {bootid}'''.format(
+		mua = str(self.mua).replace("\n", "\n\t"),
+		recipients = "".join([ "\n\t- " + repr(i) for i in self.recipients]),
+		subject = repr(self.subject),
+		header = repr(self.header),
+		uptime_since = self.uptime_since,
+		uptime = self.uptime,
+		bootid = self.bootid)
 
 class Runnable (ABC):
 	@abstractmethod
@@ -534,7 +541,17 @@ class LocalfsBackupBackend (BackupBackend):
 		return super()._do_fs_rotate(ctx)
 
 	def __str__ (self):
-		return "localfs"
+		return '''localfs:
+	root: {root}
+	nb_copy_limit: {nb_copy_limit}
+	root_size_limit: {root_size_limit}
+	dmode: {dmode:o}
+	fmode: {fmode:o}'''.format(
+		root = self.root,
+		nb_copy_limit = self.nb_copy_limit,
+		root_size_limit = self.root_size_limit,
+		dmode = self.dmode,
+		fmode = self.fmode)
 
 	def du (path: str) -> int:
 		ret = 0
@@ -554,6 +571,65 @@ class LocalfsBackupBackend (BackupBackend):
 				ret.append(i)
 
 		return ret
+
+class MUA (ABC):
+	@abstractmethod
+	def do_send (
+		self,
+		ctx: GlobalContext,
+		recipients: Iterable[str],
+		subject: str,
+		composer: Iterable[str]) -> int: ...
+
+class MailxMUA (MUA):
+	def __init__ (self, jobj: dict):
+		self.exec = jobj.get("exec", "/bin/mailx")
+
+	def __str__ (self) -> str:
+		return '''mailx:
+	exec: {exec}'''.format(exec = self.exec)
+
+	def do_send (
+		self,
+		ctx: GlobalContext,
+		recipients: Iterable[str],
+		subject: str,
+		composer: Iterable[str]) -> int:
+		argv = [ self.exec, "-s", subject ] + recipients
+
+		with subprocess.Popen(
+			argv,
+			stdin = subprocess.PIPE,
+			stdout = subprocess.DEVNULL,
+			stderr = subprocess.PIPE) as p:
+			for d in composer:
+				p.stdin.write(d.encode())
+			p.stdin.close()
+
+			return p.wait()
+
+class StdoutMUA (MUA):
+	def __init__ (self, jobj: dict): pass
+
+	def __str__ (self) -> str:
+		return "stdout"
+
+	def do_send (
+		self,
+		ctx: GlobalContext,
+		recipients: Iterable[str],
+		subject: str,
+		composer: Iterable[str]) -> int:
+		sys.stdout.write(subject + "\n")
+
+		for r in recipients:
+			sys.stdout.write(r + "\n")
+		sys.stdout.write("\n")
+
+		for d in composer:
+			sys.stdout.write(d)
+
+		return 0
 
 class BuiltinRunnable (Runnable, ValidObject):
 	def __init__ (self):
@@ -908,12 +984,4 @@ def load_conf (path: str, inc_set: set = set()) -> dict:
 	return jobj
 
 def setup_conf (jobj: dict) -> GlobalContext:
-	ret = GlobalContext(jobj)
-
-	for i in jobj.get("execs", iter(())):
-		ret.exec_map[i["id"]] = Exec(i)
-
-	for i in jobj.get("tasks", iter(())):
-		ret.task_map[i["id"]] = TaskClassMap[i["type"]](ret, i)
-
-	return ret
+	return GlobalContext(jobj)

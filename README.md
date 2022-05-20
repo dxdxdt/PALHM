@@ -234,6 +234,26 @@ or a rc.d script on SysVinit based systems.
 }
 ```
 
+### AWS SNS MUA
+The boot report can be sent to a AWS SNS topic. The `aws-sns` MUA comes with
+the `aws` module.
+
+```jsonc
+{
+	"modules": [ "aws" ],
+	"boot-report": {
+		"mua": "aws-sns",
+		"mua-param": {
+			// "profile": "default",
+			// If the profile does not have the default region.
+			"region": "us-east-1"
+		},
+		// Target ARNs. Any ARN recognised by the SNS can be used.
+		"mail-to": [ "arn:aws:sns:us-east-1:NNNNNNNNNNNN:topic-test" ]
+	}
+}
+```
+
 ## DNSSEC Check
 If your domain is configured with DNSSEC[^2], PALHM can be used to check the
 reachability of your RRs. Your domain will become unavailable when the keys are

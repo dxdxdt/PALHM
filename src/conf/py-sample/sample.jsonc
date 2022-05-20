@@ -1,11 +1,13 @@
 {
 	"include": [ "/etc/palhm/conf.d/core.json" ],
-	// "modules": [ "aws" ],
+	"modules": [ "aws" ],
 	"nb-workers": 0,
 	// "vl": 4,
 	"boot-report": {
 		// "mua": "stdout",
 		"mua": "mailx",
+		// "mua": "aws-sns",
+		// "mua-param": {},
 		"mail-to": [ "root" ]
 		// "subject": "Custom Boot Report Subject from {hostname}",
 		// "header": "Custom header content with {hostname} substitution."
