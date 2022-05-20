@@ -25,7 +25,7 @@ from typing import Callable, Iterable
 
 import boto3
 import botocore
-from palhm import BackupBackend, Exec, GlobalContext
+from palhm import MUA, BackupBackend, Exec, GlobalContext
 from palhm.exceptions import APIFailError
 
 
@@ -246,7 +246,59 @@ class S3BackupBackend (BackupBackend):
 		return ret
 
 	def __str__ (self):
-		return "aws-s3"
+		return '''aws-s3:
+	profile: {profile}
+	bucket: {bucket}
+	root_key: {root_key}
+	nb_copy_limit: {nb_copy_limit}
+	root_size_limit: {root_size_limit}
+	sc_sink: {sc_sink}
+	sc_rot: {sc_rot}'''.format(
+		profile = self.profile,
+		bucket = self.bucket,
+		root_key = self.root_key,
+		nb_copy_limit = self.nb_copy_limit,
+		root_size_limit = self.root_size_limit,
+		sc_sink = self.sc_sink,
+		sc_rot = self.sc_rot)
+
+class AwsSnsMUA (MUA):
+	def __init__ (self, jobj: dict):
+		self.profile = jobj.get("profile", "default")
+		self.region = jobj.get("region", None)
+
+	def __str__ (self) -> str:
+		return '''aws-sns:
+	profile: {profile}
+	region: {region}'''.format(
+		profile = self.profile,
+		region = self.region)
+
+	def do_send(
+		self,
+		ctx: GlobalContext,
+		recipients: Iterable[str],
+		subject: str,
+		composer: Iterable[str]) -> int:
+		lines = list[str]()
+		client = boto3.Session(
+			profile_name = self.profile,
+			region_name = self.region).client("sns")
+
+		for l in composer:
+			lines.append(l)
+
+		for i in recipients:
+			client.publish(
+				TargetArn = i,
+				Subject = subject,
+				Message = "".join(lines))
+
+		return 0
+
+muas = {
+	"aws-sns": AwsSnsMUA
+}
 
 backup_backends = {
 	"aws-s3": S3BackupBackend
