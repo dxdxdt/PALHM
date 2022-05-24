@@ -255,7 +255,7 @@ the `aws` module.
 ```
 
 ## DNSSEC Check
-If your domain is configured with DNSSEC[^2], PALHM can be used to check the
+If your domain is configured with DNSSEC, PALHM can be used to check the
 reachability of your RRs. Your domain will become unavailable when the keys are
 misconfigured or you have missed the mandatory key rollover event.
 
@@ -369,4 +369,3 @@ Cross-region data transfer is costly, so this idea came to a halt.
 
 ## Footnotes
 [^1]: Even with SSDs, disrupting sequential reads decreases overall performance
-[^2]: You really should if it's not
