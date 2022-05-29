@@ -1,6 +1,6 @@
 [Unit]
 Description=PALHM send boot report mail
-After=postfix.service sendmail.service exim.service
+After=postfix.service sendmail.service exim.service dovecot.service network-online.target
 
 [Service]
 Type=oneshot
