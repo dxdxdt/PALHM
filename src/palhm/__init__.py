@@ -584,6 +584,7 @@ class MUA (ABC):
 class MailxMUA (MUA):
 	def __init__ (self, jobj: dict):
 		self.exec = jobj.get("exec", "/bin/mailx")
+		self.int_opts = jobj.get("int-opts", [])
 
 	def __str__ (self) -> str:
 		return '''mailx:
@@ -595,7 +596,12 @@ class MailxMUA (MUA):
 		recipients: Iterable[str],
 		subject: str,
 		composer: Iterable[str]) -> int:
-		argv = [ self.exec, "-s", subject ] + recipients
+		argv = [ self.exec ]
+		for i in self.int_opts:
+			argv.append("-S")
+			argv.append(i)
+		argv += [ "-s", subject ]
+		argv += recipients
 
 		with subprocess.Popen(
 			argv,

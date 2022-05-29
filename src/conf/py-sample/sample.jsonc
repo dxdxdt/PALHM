@@ -7,7 +7,9 @@
 		// "mua": "stdout",
 		"mua": "mailx",
 		// "mua": "aws-sns",
-		// "mua-param": {},
+		"mua-param": {
+			"int-opts": [ "smtp=localhost" ]
+		},
 		"mail-to": [ "root" ]
 		// "subject": "Custom Boot Report Subject from {hostname}",
 		// "header": "Custom header content with {hostname} substitution."
