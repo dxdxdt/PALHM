@@ -103,7 +103,9 @@ class GlobalContext:
 				self.muas |= loaded.muas
 
 		self.nb_workers = jobj.get("nb-workers", DEFAULT.NB_WORKERS.value)
-		if self.nb_workers < 0:
+		if self.nb_workers == 0:
+			self.nb_workers = default_workers()
+		elif self.nb_workers < 0:
 			self.nb_workers = None
 		if "vl" in jobj:
 			self.vl = trans_vl(jobj["vl"])

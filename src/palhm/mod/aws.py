@@ -197,7 +197,7 @@ class S3BackupBackend (BackupBackend):
 
 	def rollback (self, ctx: GlobalContext):
 		if not self.cur_backup_uri is None:
-			self._rm_fs_recursive(ctx, [self.cur_backup_uri])
+			self._rm_fs_recursive(ctx, [self.cur_backup_key])
 
 	def close (self, ctx: GlobalContext):
 		self._cleanup_multiparts(ctx)
@@ -226,12 +226,12 @@ class S3BackupBackend (BackupBackend):
 
 		if self.sc_rot and self.sc_rot != self.sc_sink:
 			def chsc (k):
-				self.client.copy_object(
-					Bucket = self.bucket,
-					CopySource = mks3objkey([self.bucket, k]),
-					Key = k,
-					MetadataDirective = "COPY",
-					StorageClass = self.sc_rot)
+				cp_src = {
+					"Bucket": self.bucket,
+					"Key": k
+				}
+				extra = { "StorageClass": self.sc_rot }
+				self.client.copy(cp_src, self.bucket, k, extra)
 
 			with ThreadPoolExecutor(max_workers = ctx.nb_workers) as th_pool:
 				l = self._logger(ctx)
