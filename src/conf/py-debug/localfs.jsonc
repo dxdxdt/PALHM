@@ -23,7 +23,8 @@
 				// "dmode": "755",
 				// "fmode": "644",
 				"nb-copy-limit": 2,
-				"root-size-limit": "Infinity"
+				"root-size-limit": "Infinity",
+				"block-size": 4096
 			},
 			"object-groups": [
 				{ "id": "pre-start" },
@@ -63,6 +64,7 @@
 				},
 				{
 					"path": "random-dump.sql.xz",
+					"alloc-size": 2097152,
 					"group": "data-dump",
 					"pipeline": [
 						{
@@ -80,6 +82,7 @@
 				},
 				{
 					"path": "random-dump.0.xz",
+					"alloc-size": 2097152,
 					"group": "tar-media-0",
 					"pipeline": [
 						{
@@ -97,6 +100,7 @@
 				},
 				{
 					"path": "random-dump.1.xz",
+					"alloc-size": 2097152,
 					"group": "tar-media-1",
 					"pipeline": [
 						{

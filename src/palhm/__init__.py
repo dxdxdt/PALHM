@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import platform
+import resource
 import sys
 import time
 
@@ -381,7 +382,7 @@ class BackupBackend (ABC):
 	def close (self, ctx: GlobalContext):
 		...
 	@abstractmethod
-	def sink (self, ctx: GlobalContext, path: str) -> Exec:
+	def sink (self, ctx: GlobalContext, bo) -> Exec:
 		...
 	@abstractmethod
 	def rotate (self, ctx: GlobalContext):
@@ -478,10 +479,17 @@ class NullBackupBackend (BackupBackend):
 
 class LocalfsBackupBackend (BackupBackend):
 	def __init__ (self, param: dict):
+		def _getpagesize () -> int:
+			try:
+				return resource.getpagesize()
+			except:
+				return 4096
+
 		self.backup_root = param["root"]
 		self.mkprefix = BackupBackend.mkprefix_iso8601
 		self.nb_copy_limit = Decimal(param.get("nb-copy-limit", "Infinity"))
 		self.root_size_limit = Decimal(param.get("root-size-limit", "Infinity"))
+		self.block_size = param.get("block-size", _getpagesize())
 		self.dmode = int(param.get("dmode", "750"), 8)
 		self.fmode = int(param.get("fmode", "640"), 8)
 		self.cur_backup_path = None
@@ -499,13 +507,17 @@ class LocalfsBackupBackend (BackupBackend):
 	def close (self, ctx: GlobalContext):
 		pass
 
-	def sink (self, ctx: GlobalContext, path: str) -> Exec:
-		path = os.sep.join([ self.cur_backup_path, path ])
+	def sink (self, ctx: GlobalContext, bo) -> Exec:
+		path = os.sep.join([ self.cur_backup_path, bo.path ])
 		os.makedirs(os.path.dirname(path), self.dmode, True)
 		self.sink_list.append(path)
 
+		if bo.alloc_size is not None:
+			try: os.truncate(bo.path, bo.alloc_size)
+			except: pass
+
 		e = Exec()
-		e.argv = [ "/bin/cp", "/dev/stdin", path ]
+		e.argv = [ "/bin/dd", "bs=" + str(self.block_size), "of=" + path ]
 
 		return e
 
@@ -549,7 +561,7 @@ class LocalfsBackupBackend (BackupBackend):
 	root_size_limit: {root_size_limit}
 	dmode: {dmode:o}
 	fmode: {fmode:o}'''.format(
-		root = self.root,
+		root = self.backup_root,
 		nb_copy_limit = self.nb_copy_limit,
 		root_size_limit = self.root_size_limit,
 		dmode = self.dmode,
@@ -724,6 +736,7 @@ class BackupObject (Runnable):
 		self.pipeline = []
 		self.path = jobj["path"]
 		self.bbctx = None
+		self.alloc_size = jobj.get("alloc-size", None)
 
 		for e in jobj["pipeline"]:
 			ny_exec = Exec.from_conf(ctx, e)
@@ -743,7 +756,7 @@ class BackupObject (Runnable):
 			pmap[eh] = p
 			last_stdio = p.stdout
 
-		sink_exec = self.bbctx.sink(ctx, self.path)
+		sink_exec = self.bbctx.sink(ctx, self)
 		sink_p = subprocess.Popen(
 			args = sink_exec.argv,
 			stdin = last_stdio,

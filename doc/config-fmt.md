@@ -258,6 +258,7 @@ object does not require the "id" member.
 
 ##### Backup Object Definition Object
 * "path": path to the backup output on the backend **(REQUIRED)**
+* "alloc-size": the expected size of the object in bytes
 * "group": the id of a [Backup Object Group Definition
   Object](#backup-object-group-definition-object)
 * "pipeline": array of
@@ -268,6 +269,7 @@ object does not require the "id" member.
 ```jsonc
 {
   "path": "srv.tar.zstd",
+  "alloc-size": 2097152,
   "group": "tar-1",
   "pipeline": [
     {

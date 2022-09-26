@@ -38,6 +38,8 @@ Backup Objects have two essential attributes.
 
 * **pipeline**: commands used to generate the backup output file
 * **path**: path to the output file on the backend
+* **alloc-size**: expected size of the object. Recommended for some backends
+  like AWS in order to determine the transfer block size
 
 For example, this object definition is for a mysql data dump compressed in zstd
 and encrypted using a public key id "backup-pub-key" named as
@@ -46,6 +48,7 @@ and encrypted using a public key id "backup-pub-key" named as
 ```jsonc
 {
   "path": "all-db.sql.zstd.pgp",
+  "alloc-size": 268435456, // 256MiB
   "pipeline": [
     { "type": "exec-inline", "argv": [ "/bin/mysqldump", "-uroot", "--all-databases" ] },
     { "type": "exec-inline", "argv": [ "/bin/zstd" ] },
@@ -126,7 +129,8 @@ integers.
         "dmode": "755", // (optional) mode for new directories
         "fmode": "644", // (optional) mode for new files
         "nb-copy-limit": "Infinity", // (optional)
-        "root-size-limit": "Infinity" // (optional)
+        "root-size-limit": "Infinity", // (optional)
+        "block-size": 8388608 // 16MiB: (optional)block size for underlying dd command
       },
       "object-groups": [ /* ... */ ],
       "objects": [ /* ... */ ]
@@ -333,6 +337,18 @@ palhm.py -q run check-dnssec
 | - | - |
 | /etc/palhm/palhm.conf | The default config path |
 | /etc/palhm/conf.d/core.json | Commonly used Exec and Prefix definitions |
+
+## Troubleshoot
+### Large Files on AWS S3
+To fit awscli into the pipelining design, the sink data is fed via stdin of
+awscli. As a result, uploading files larger than 80GiB will fail without
+following measures.
+
+- Specifying `alloc-size` for large backup objects so that awscli can determine
+  the optimal multipart size
+- Increasing the default multipart size in config
+  - E.g. `aws configure set default.s3.multipart_chunksize 32MiB` will increase
+    the max to 320GiB (32MiB * 10000)
 
 ## Advanced
 ### Testing Config

@@ -66,6 +66,7 @@
 				},
 				{
 					"path": "random-dump.sql.xz",
+					"alloc-size": 2097152,
 					"group": "data-dump",
 					"pipeline": [
 						{
@@ -83,6 +84,7 @@
 				},
 				{
 					"path": "random-dump.0.xz",
+					"alloc-size": 2097152,
 					"group": "tar-media-0",
 					"pipeline": [
 						{
@@ -100,6 +102,7 @@
 				},
 				{
 					"path": "random-dump.1.xz",
+					"alloc-size": 2097152,
 					"group": "tar-media-1",
 					"pipeline": [
 						{

@@ -25,7 +25,7 @@ from typing import Callable, Iterable
 
 import boto3
 import botocore
-from palhm import MUA, BackupBackend, Exec, GlobalContext
+from palhm import MUA, BackupBackend, BackupObject, Exec, GlobalContext
 from palhm.exceptions import APIFailError
 
 
@@ -202,7 +202,7 @@ class S3BackupBackend (BackupBackend):
 	def close (self, ctx: GlobalContext):
 		self._cleanup_multiparts(ctx)
 
-	def sink (self, ctx: GlobalContext, path: str) -> Exec:
+	def sink (self, ctx: GlobalContext, bo) -> Exec:
 		l = self._logger(ctx)
 
 		e = Exec()
@@ -214,10 +214,12 @@ class S3BackupBackend (BackupBackend):
 			"--only-show-errors" ]
 		if self.sc_sink:
 			e.argv.append("--storage-class=" + self.sc_sink)
-		e.argv.extend(["-", "/".join([self.cur_backup_uri, path])])
+		if bo.alloc_size is not None:
+			e.argv.append("--expected-size=" + str(bo.alloc_size))
+		e.argv.extend(["-", "/".join([self.cur_backup_uri, bo.path])])
 
 		l.debug("sink: " + str(e))
-		self.sink_list.append(mks3objkey([self.cur_backup_key, path]))
+		self.sink_list.append(mks3objkey([self.cur_backup_key, bo.path]))
 
 		return e
 
