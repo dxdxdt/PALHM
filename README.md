@@ -202,7 +202,7 @@ reduce IO seek time.
 }
 ```
 
-On start, the objects in "root" and "http" groups will be built simultanesouly.
+On start, the objects in "root" and "http" groups will be built simultaneously.
 On completion of all the objects in "http", the objects in the group "sql" and
 "ldap" will be built in order.
 
@@ -216,24 +216,28 @@ or a rc.d script on SysVinit based systems.
 ```jsonc
 {
   "boot-report": {
-	// (REQUIRED) MUA for sending mail
-	/* stdout MUA
-	 * For testing. Print contents to stdout. Doesn't actually send mail
-	 */
+   // (REQUIRED) MUA for sending mail
+   /* stdout MUA
+    * For testing. Print contents to stdout. Doesn't actually send mail
+    */
     // "mua": "stdout",
     "mua": "mailx", // mailx command MUA
-	// (REQUIRED) List of recipients
+   // (REQUIRED) List of recipients
     "mail-to": [ "root" ],
-	// The mail subject (optional)
+   // The mail subject (optional)
     "subject": "Custom Boot Report Subject from {hostname}",
-	/*
-	 * The mail body header(leading yaml comments). Use line break(\n) for
-	 * multi-line header (optional)
-	 */
+   /*
+    * The mail body header(leading yaml comments). Use line break(\n) for
+    * multi-line header (optional)
+    */
     "header": "Custom header content with {hostname} substitution.",
     "uptime-since": true, // Include output of `uptime --since` (optional)
     "uptime": true, // Include output of `uptime -p` (optional)
-    "bootid": true // Include kernel boot_id (optional)
+    "bootid": true, // Include kernel boot_id (optional)
+    // Wait for systemd to finish boot up process (optional)
+    "boot-wait": "systemd",
+    // Wait 5 seconds before sending mail
+    "delay": 5
   }
 }
 ```
@@ -244,17 +248,17 @@ the `aws` module.
 
 ```jsonc
 {
-	"modules": [ "aws" ],
-	"boot-report": {
-		"mua": "aws-sns",
-		"mua-param": {
-			// "profile": "default",
-			// If the profile does not have the default region.
-			"region": "us-east-1"
-		},
-		// Target ARNs. Any ARN recognised by the SNS can be used.
-		"mail-to": [ "arn:aws:sns:us-east-1:NNNNNNNNNNNN:topic-test" ]
-	}
+  "modules": [ "aws" ],
+  "boot-report": {
+    "mua": "aws-sns",
+    "mua-param": {
+      // "profile": "default",
+      // If the profile does not have the default region.
+      "region": "us-east-1"
+    },
+    // Target ARNs. Any ARN recognised by the SNS can be used.
+    "mail-to": [ "arn:aws:sns:us-east-1:NNNNNNNNNNNN:topic-test" ]
+  }
 }
 ```
 

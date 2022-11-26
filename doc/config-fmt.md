@@ -5,9 +5,9 @@ them to json by an external command. PALHM distinguishes between these two
 format by the file name extension. The conversion only occurs when the name of
 the config file ends with `.jsonc`.
 
-To support the IEEE754 infinity, the accepated data types for some values are
-both string and number. The former will be parsed by the relevant type class
-before they are processed.
+To support the IEEE754 infinity, the data types used for some values are both
+string and number. The former will be parsed by the relevant type class before
+they are processed.
 
 ## Structure
 The format of the object feature table.
@@ -148,8 +148,8 @@ is required, simply increase the verbosity with the `-v` option.
     * C: comparator. One of &lt;, &lt;=, &gt;, &gt;= or ==. Defaults to ==
   * Examples
     * ">=0": ignore exit code(always success)
-	* "<2" or "0-1": accept exit code 0 and 1
-	* "1": accept exit code 1 only
+    * "<2" or "0-1": accept exit code 0 and 1
+    * "1": accept exit code 1 only
  * "vl-stderr": verbosity level of stderr from the process. Defaults to 1
  * "vl-stdout": verbosity level of stdout from the process. Defaults to 3
 
@@ -164,7 +164,7 @@ is required, simply increase the verbosity with the `-v` option.
   "argv": [ "/bin/pgp", "-e", "-r", "backup", "--compress-algo", "none" ],
   "env": {
     "LC_ALL": "C",
-	"GNUPGHOME": "~/gnupg"
+    "GNUPGHOME": "~/gnupg"
   },
   "ec": "==0",
   "vl-stderr": 1,
@@ -396,6 +396,10 @@ header contents of the yaml document for humans.
 * "uptime-since": include output of `uptime --since`
 * "uptime": include output of `uptime -p`
 * "bootid": include boot_id(`/proc/sys/kernel/random/boot_id`)
+* "boot-wait": boot wait backend
+  * "systemd": wait for systemd to finish boot up
+* "delay": the number of seconds to wait before sending mail. Finite float equal
+   to or greater than zero
 
 #### Content Substitution Variables
 * {hostname}: The hostname. See

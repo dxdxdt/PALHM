@@ -21,6 +21,7 @@ import platform
 import resource
 import sys
 import time
+import math
 
 from .exceptions import InvalidConfigError
 import json
@@ -178,7 +179,22 @@ class BootReport:
 			"This is a boot report from {hostname}.\n" +
 			"More details as follows.")
 
+	def _bootwait_systemd ():
+		argv = [
+			"/usr/bin/systemctl",
+			"is-system-running",
+			"--wait"
+		]
+		with subprocess.Popen(
+			argv,
+			stdin = subprocess.DEVNULL,
+			stdout = subprocess.DEVNULL) as p:
+			ec = p.wait()
+			if ec != 0:
+				raise ChildProcessError(p)
+
 	def __init__ (self, ctx: GlobalContext, jobj: dict):
+		def do_nothing(): pass
 		self.yaml = import_module("yaml")
 
 		self.mua = ctx.muas[jobj["mua"]](jobj.get("mua-param", {}))
@@ -188,6 +204,20 @@ class BootReport:
 		self.uptime_since = jobj.get("uptime-since", True)
 		self.uptime = jobj.get("uptime", True)
 		self.bootid = jobj.get("boot-id", True)
+		self.bootwait = jobj.get("boot-wait")
+		self.delay = float(jobj.get("delay", 0))
+
+		if self.bootwait is None:
+			self.bootwait_f = do_nothing
+		else:
+			if self.bootwait == "systemd":
+				self.bootwait_f = BootReport._bootwait_systemd
+			else:
+				raise KeyError(self.bootwait)
+
+		if not math.isfinite(self.delay) or self.delay < 0:
+			raise ValueError(self.delay)
+
 
 	def get_subject (self) -> str:
 		return BootReport._do_format(self.subject)
@@ -231,6 +261,9 @@ class BootReport:
 		yield self.yaml.dump(root_doc)
 
 	def do_send (self, ctx: GlobalContext) -> int:
+		self.bootwait_f()
+		time.sleep(self.delay)
+
 		return self.mua.do_send(
 			ctx = ctx,
 			recipients = self.recipients,
@@ -244,14 +277,18 @@ subject: {subject}
 header: {header}
 uptime_since: {uptime_since}
 uptime: {uptime}
-bootid: {bootid}'''.format(
+bootid: {bootid}
+bootwait: {bootwait}
+delay: {delay}'''.format(
 		mua = str(self.mua).replace("\n", "\n\t"),
 		recipients = "".join([ "\n\t- " + repr(i) for i in self.recipients]),
 		subject = repr(self.subject),
 		header = repr(self.header),
 		uptime_since = self.uptime_since,
 		uptime = self.uptime,
-		bootid = self.bootid)
+		bootid = self.bootid,
+		bootwait = self.bootwait,
+		delay = self.delay)
 
 class Runnable (ABC):
 	@abstractmethod
