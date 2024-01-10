@@ -6,7 +6,6 @@ After=postfix.service sendmail.service exim.service dovecot.service network-onli
 Type=oneshot
 ExecStart=/var/lib/PALHM/src/palhm.py -q boot-report
 Nice=10
-User=palhm
 
 [Install]
 WantedBy=multi-user.target
