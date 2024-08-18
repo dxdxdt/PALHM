@@ -38,6 +38,25 @@
 			]
 		},
 		{
+			"id": "dnf-list-userinstalled",
+			"argv": [
+				"/bin/dnf",
+				"history",
+				"userinstalled"
+			]
+		},
+		{
+			"id": "dnf-group-list-installed",
+			"argv": [
+				"/bin/dnf",
+				"--cacheonly",
+				"-q",
+				"group",
+				"list",
+				"--installed"
+			]
+		},
+		{
 			"id": "dpkg-list-installed",
 			"argv": [ "/bin/dpkg-query", "-l" ]
 		},
