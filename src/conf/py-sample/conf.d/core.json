@@ -54,7 +54,8 @@
 				"group",
 				"list",
 				"--installed"
-			]
+			],
+			"ec": " >= 0"
 		},
 		{
 			"id": "dpkg-list-installed",
