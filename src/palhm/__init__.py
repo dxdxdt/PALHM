@@ -24,7 +24,7 @@ import time
 import math
 
 from .exceptions import InvalidConfigError
-import json
+import pyjson5
 import logging
 import os
 import re
@@ -297,8 +297,8 @@ class Runnable (ABC):
 
 class Exec (Runnable, ExecvHolder):
 	class RE (Enum):
-		EC_INC_RANGE = re.compile('''([0-9]+)(?:\s+)?-(?:\s+)?([0-9]+)''')
-		EC_RANGE = re.compile('''(<|<=|>|>=|==)?(?:\s+)?([0-9]+)''')
+		EC_INC_RANGE = re.compile(r'''([0-9]+)(?:\s+)?-(?:\s+)?([0-9]+)''')
+		EC_RANGE = re.compile(r'''(<|<=|>|>=|==)?(?:\s+)?([0-9]+)''')
 
 	class DEFAULT (Enum):
 		EC = range(0, 1)
@@ -998,32 +998,14 @@ def merge_conf (a: dict, b: dict) -> dict:
 
 	return ret
 
-def load_jsonc (path: str) -> dict:
-	with (open(path) as in_file,
-		subprocess.Popen(
-			[ "/bin/json_reformat" ],
-			stdin = in_file,
-			stdout = subprocess.PIPE) as p):
-		ret = json.load(p.stdout)
-
-		if p.wait() != 0:
-			raise ChildProcessError(p, path)
-
-	return ret
-
 def load_conf (path: str, inc_set: set = set()) -> dict:
-	JSONC_EXT = ".jsonc"
-
 	rpath = os.path.realpath(path)
 	if rpath in inc_set:
 		raise RecursionError("Config already included", rpath)
 	inc_set.add(rpath)
 
-	if rpath[-len(JSONC_EXT):].lower() == JSONC_EXT:
-		jobj = load_jsonc(rpath)
-	else:
-		with open(rpath) as file:
-			jobj = json.load(file)
+	with open(rpath) as file:
+		jobj = pyjson5.load(file)
 
 	# TODO: do schema validation
 
