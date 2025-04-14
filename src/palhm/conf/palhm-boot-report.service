@@ -4,7 +4,7 @@ After=postfix.service sendmail.service exim.service dovecot.service network-onli
 
 [Service]
 Type=oneshot
-ExecStart=/var/lib/PALHM/src/palhm.py -q boot-report
+ExecStart=/usr/bin/python -m palhm -q boot-report
 Nice=10
 
 [Install]

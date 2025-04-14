@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright (c) 2022 David Timber <dxdt@dev.snart.me>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -41,7 +40,8 @@ class ProgConf:
 			ProgConf.ctx.l.setLevel(ProgConf.override_vl)
 
 def err_unknown_cmd ():
-	sys.stderr.write("Unknown command. Run '" + sys.argv[0] + " help' for usage.\n")
+	sys.stderr.write(
+		"Unknown command. Run '" + sys.executable + " -m palhm help' for usage.\n")
 	exit(2)
 
 class Cmd (ABC):
@@ -60,7 +60,7 @@ class ConfigCmd (Cmd):
 
 	def print_help ():
 		print(
-"Usage: " + sys.argv[0] + " config" + '''
+"Usage: " + sys.executable + " -m palhm config" + '''
 Load and parse config. Print the structure to stdout.''')
 
 class RunCmd (Cmd):
@@ -82,7 +82,7 @@ class RunCmd (Cmd):
 
 	def print_help ():
 		print(
-"Usage: " + sys.argv[0] + " run [TASK]" + '''
+"Usage: " + sys.executable + " -m palhm run [TASK]" + '''
 Run a task in config. Run the "''' + palhm.DEFAULT.RUN_TASK.value +
 '''" task if [TASK] is not specified.''')
 
@@ -130,7 +130,7 @@ class ModsCmd (Cmd):
 
 	def print_help ():
 		print(
-"Usage: " + sys.argv[0] + " mods" + '''
+"Usage: " + sys.executable + " -m palhm mods" + '''
 Prints the available modules to stdout.''')
 
 class BootReportCmd (Cmd):
@@ -147,7 +147,7 @@ class BootReportCmd (Cmd):
 
 	def print_help ():
 		print(
-"Usage: " + sys.argv[0] + " boot-report" + '''
+"Usage: " + sys.executable + " -m palhm boot-report" + '''
 Send mail of boot report to recipients configured.''')
 
 class HelpCmd (Cmd):
@@ -168,7 +168,7 @@ class HelpCmd (Cmd):
 
 	def print_help ():
 		print(
-"Usage: " + sys.argv[0] + " [options] CMD [command options ...]" + '''
+"Usage: " + sys.executable + " -m palhm [options] CMD [command options ...]" + '''
 Options:
   -q       Set the verbosity level to 0(CRITIAL). Overrides config
   -v       Increase the verbosity level by 1. Overrides config
