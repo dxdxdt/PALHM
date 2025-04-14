@@ -19,7 +19,7 @@
 # SOFTWARE.
 from concurrent.futures import ThreadPoolExecutor, Future
 from decimal import Decimal
-from enum import Enum
+import sys
 from time import sleep
 from typing import Callable, Iterable
 
@@ -28,9 +28,6 @@ import botocore
 from palhm import MUA, BackupBackend, BackupObject, Exec, GlobalContext
 from palhm.exceptions import APIFailError
 
-
-class CONST (Enum):
-	AWSCLI = "/bin/aws"
 
 def mks3objkey (keys: Iterable[str]) -> str:
 	ret = "/".join(keys)
@@ -180,7 +177,9 @@ class S3BackupBackend (BackupBackend):
 			for i in pl:
 				e = Exec()
 				e.argv = [
-					CONST.AWSCLI.value,
+					sys.executable,
+					"-m",
+					"awscli",
 					"--profile=" + self.profile,
 					"s3",
 					"rm",
@@ -207,7 +206,9 @@ class S3BackupBackend (BackupBackend):
 
 		e = Exec()
 		e.argv = [
-			CONST.AWSCLI.value,
+			sys.executable,
+			"-m",
+			"awscli",
 			"--profile=" + self.profile,
 			"s3",
 			"cp",
