@@ -309,32 +309,40 @@ produce stderr output and return non-zero exit code, causing crond to send mail.
 Here's the example crontab.
 
 ```crontab
-0  *  *  *  *   root systemd-run -qP -p User=palhm -p Nice=15 -p ProtectSystem=strict -p ReadOnlyPaths=/ -p PrivateDevices=true --wait /var/lib/PALHM/src/palhm.py -q run check-dnssec
+0  *  *  *  *   root systemd-run -qP -p User=palhm -p Nice=15 -p ProtectSystem=strict -p ReadOnlyPaths=/ -p PrivateDevices=true --wait python -m palhm -q run check-dnssec
 ```
 
 ## Config JSON Format
 See [doc/config-fmt.md](doc/config-fmt.md).
 
 ## Getting Started
-The tasks can be run with the "run" subcommand. Run
-'[src/palhm.py](src/palhm.py)' help for more.
-
-```sh
-palhm.py run
-# For crontab job
-palhm.py -q run
-palhm.py -q run check-dnssec
-```
-
 ### Prerequisites
 * Python 3.9 or higher
-* `json_reformat` command provided by **yajl** for jsonc support (optional)
-* **awscli** and **boto3** for aws-s3 backup backend (optional)
+
+### INSTALL (basic)
+```sh
+python -m pip install palhm
+```
+
+### INSTALL (with AWS support)
+```sh
+python -m pip install 'palhm[aws]'
+```
 
 ### Examples
 * [sample.jsonc](src/conf/py-sample/sample.jsonc)
 * [crontab](src/conf/crontab)
 * [systemd service](src/conf/palhm-boot-report.service) for Boot Report
+
+### USAGE
+The tasks can be run with the "run" subcommand. Run
+`python -m palhm help` for more.
+
+```sh
+python -m palhm -q run
+python -m palhm -q check-dnssec
+palhm.py run
+```
 
 ## Files
 | Path | Desc |
@@ -363,7 +371,7 @@ to test out your config. The distro must be running Systemd in order for this to
 work.
 
 ```sh
-systemd-run -qP -p Nice=15 -p ProtectSystem=strict -p ReadOnlyPaths=/ -p PrivateDevices=true --wait /usr/local/bin/palhm.py run backup
+systemd-run -qP -p Nice=15 -p ProtectSystem=strict -p ReadOnlyPaths=/ -p PrivateDevices=true --wait python -m palhm run backup
 ```
 
 If your config runs on a read-only file system, it's safe to assume that the
