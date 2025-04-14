@@ -1,0 +1,40 @@
+[build-system]
+requires = [ "hatchling" ]
+build-backend = "hatchling.build"
+
+[project]
+name = "palhm"
+version = "0.0.3"
+authors = [
+  { name="David Timber", email="dxdt@dev.snart.me" },
+]
+description = "PALHM"
+readme = "README.md"
+requires-python = ">= 3.9"
+dependencies = [ "pyjson5" ]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+aws = [ "awscli", "boto3" ]
+
+[project.urls]
+Homepage = "https://github.com/dxdxdt/PALHM/"
+Issues = "https://github.com/dxdxdt/PALHM/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = [ "src" ]
+
+[tool.setuptools.package-data]
+sample-conf = [
+  "conf/py-sample/conf.d/*",
+  "conf/py-sample/sample.jsonc",
+  "conf/crontab",
+  "conf/palhm-boot-report.service" ]
